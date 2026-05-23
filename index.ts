@@ -1,5 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { DOMParser } from "https://deno.land/x/deno_dom@v0.1.38/deno-dom-wasm.ts";
+import { DOMParser } from "https://esm.sh/linkedom@0.16.8";
 
 /**
  * EAGLE EYE SCANNER - ADVANCED DEDUPLICATION & QUALITY EVALUATION
