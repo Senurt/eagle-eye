@@ -34,10 +34,20 @@ const FACEBOOK_PAGES_TO_SCRAPE = [
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || "https://rbxtwzbzglwekeztguhu.supabase.co";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
-if (!SUPABASE_SERVICE_ROLE_KEY) throw new Error("Missing SUPABASE_SERVICE_ROLE_KEY.");
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+// Defensive check: Initialize the client conditionally so Deno's warm-up step never fails.
+let supabase: any = null;
+if (SUPABASE_SERVICE_ROLE_KEY) {
+  supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
+} else {
+  console.warn("⚠️ SYSTEM ALERT: SUPABASE_SERVICE_ROLE_KEY environment variable is not set.");
+}
 
 async function processAndUpsertIncident(newIncident: any) {
+  if (!supabase) {
+    console.error("❌ DB ERROR: Supabase client is uninitialized. Ensure variables are loaded in settings.");
+    return;
+  }
+
   const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   
   const { data: existingIncidents, error: fetchError } = await supabase
@@ -152,4 +162,11 @@ async function runDynamicScanner() {
   console.log("Scanner loop sequence finalized.");
 }
 
-runDynamicScanner();
+// Automatically schedules the scanner to run every 10 minutes on Deno Deploy
+Deno.cron("Eagle Eye Scheduled Incident Scan", "*/10 * * * *", async () => {
+  if (!supabase) {
+    console.error("Skipping scheduled scan: Supabase is not configured.");
+    return;
+  }
+  await runDynamicScanner();
+});
