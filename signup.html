@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign Up | Eagle Eye</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <!-- Font Awesome for toggle icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --black: #0a0a0a; 
+            --orange: #F97316; 
+            --red: #DC2626;
+            --grad: linear-gradient(90deg, #F97316 0%, #DC2626 100%);
+            --input-bg: #1f1f1f;
+            --text-muted: #888;
+        }
+        * { scrollbar-width: thin; scrollbar-color: #F97316 #111; }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #111; }
+        ::-webkit-scrollbar-thumb { background: var(--grad); border-radius: 10px; }
+        body { background: var(--black); display: flex; min-height: 100vh; font-family: 'Inter', sans-serif; color: white; overflow-x: hidden; }
+        
+        #loadingOverlay { display: none; position: fixed; inset: 0; background: rgba(10, 10, 10, 0.9); z-index: 10000; flex-direction: column; justify-content: center; align-items: center; }
+        .spinner { width: 40px; height: 40px; border: 4px solid rgba(249, 115, 22, 0.1); border-left-color: var(--orange); border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .left { flex: 1; position: sticky; top: 0; height: 100vh; display: flex; align-items: center; justify-content: center; overflow: hidden; flex-direction: column; padding: 48px; }
+        .left-bg { position: absolute; inset: 0; background: url('https://images.unsplash.com/photo-1473968512647-3e447244af8f?auto=format&fit=crop&q=80') center/cover; opacity: 0.22; }
+        .left-overlay { position: absolute; inset: 0; background: radial-gradient(circle, transparent, var(--black) 90%); }
+        .left-content { position: relative; z-index: 2; text-align: center; padding: 40px; }
+        
+        .brand-badge { display: inline-flex; align-items: center; gap: 10px; background: rgba(40, 20, 10, 0.6); border: 1px solid rgba(249, 115, 22, 0.4); border-radius: 999px; padding: 8px 22px; font-size: 0.85rem; font-weight: 800; color: var(--orange); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 25px; }
+        .badge-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--orange); box-shadow: 0 0 10px var(--orange); }
+        .brand-big { font-size: 3rem; font-weight: 900; line-height: 1.1; margin-bottom: 15px; color: white; }
+        .grad-text { background: var(--grad); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .left-tagline { color: rgba(255,255,255,0.4); max-width: 440px; font-size: 1rem; line-height: 1.6; margin: 0 auto; }
+
+        .right { width: 520px; min-width: 380px; background: #0a0a0a; display: flex; align-items: center; justify-content: center; padding: 32px 28px; border-left: 1px solid rgba(255,255,255,0.05); }
+        .card { background: transparent; padding: 48px 42px; width: 100%; max-width: 460px; }
+        .card-header { margin-bottom: 25px; }
+        .header-title-row { display: flex; align-items: center; margin-bottom: 8px; }
+        .back-icon { display: none; margin-right: 12px; cursor: pointer; color: var(--text-muted); transition: color 0.2s; }
+        .back-icon:hover { color: white; }
+        .card-header h1 { font-weight: 900; font-size: 2.2rem; color: white; letter-spacing: -0.5px; }
+        .sub { color: var(--text-muted); font-size: 1rem; font-weight: 500; }
+
+        .progress-container { display: flex; gap: 12px; margin: 25px 0 35px 0; }
+        .progress-bar { height: 4px; flex: 1; background: #333; border-radius: 4px; transition: background 0.3s ease; }
+        .progress-bar.active { background: var(--orange); }
+
+        .field { margin-bottom: 20px; }
+        label { display: block; font-weight: 800; font-size: 0.75rem; margin-bottom: 8px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.8px; }
+        input, select { width: 100%; padding: 16px 18px; border-radius: 12px; border: 1px solid transparent; background: var(--input-bg); color: white; font-size: 1rem; font-family: 'Inter', sans-serif; outline: none; transition: all 0.2s; }
+        input:focus, select:focus { border-color: var(--orange); background: #262626; }
+        
+        /* Error/Invalid Input border transition */
+        input.invalid, select.invalid { border-color: var(--red) !important; background: rgba(220, 38, 38, 0.05); }
+        .error-hint { color: var(--red); font-size: 0.75rem; font-weight: 600; margin-top: 6px; display: none; }
+        input.invalid + .error-hint { display: block; }
+
+        /* Password Toggle Styling */
+        .pwd-wrapper { position: relative; display: flex; align-items: center; width: 100%; }
+        .pwd-wrapper input { padding-right: 48px; }
+        .pwd-toggle { position: absolute; right: 18px; color: var(--text-muted); cursor: pointer; transition: color 0.2s; font-size: 1rem; z-index: 2; }
+        .pwd-toggle:hover { color: white; }
+
+        .select-wrapper { position: relative; }
+        .select-wrapper::after { content: "▼"; font-size: 0.6rem; color: #888; position: absolute; right: 18px; top: 50%; transform: translateY(-50%); pointer-events: none; }
+        .name-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+
+        .strength-meter { height: 4px; background: #333; margin-top: 8px; border-radius: 2px; overflow: hidden; }
+        #strengthBar { height: 100%; width: 0%; transition: 0.3s ease; }
+        .hint { font-size: 0.75rem; font-weight: 600; margin-top: 6px; display: block; }
+
+        .terms-container { margin: 15px 0 25px 0; }
+        .checkbox-wrapper { display: flex; align-items: flex-start; gap: 12px; cursor: pointer; position: relative; }
+        .checkbox-wrapper input { position: absolute; opacity: 0; cursor: pointer; height: 0; width: 0; }
+        .checkmark { height: 20px; width: 20px; background: var(--input-bg); border: 1px solid #333; border-radius: 6px; flex-shrink: 0; position: relative; transition: 0.2s; }
+        .checkbox-wrapper input:checked ~ .checkmark { background: var(--orange); border-color: var(--orange); }
+        .checkmark:after { content: ""; position: absolute; display: none; left: 6px; top: 2px; width: 5px; height: 10px; border: solid white; border-width: 0 2px 2px 0; transform: rotate(45deg); }
+        .checkbox-wrapper input:checked ~ .checkmark:after { display: block; }
+        .terms-text { font-size: 0.8rem; color: var(--text-muted); line-height: 1.5; }
+        .terms-text a { color: var(--orange); text-decoration: none; font-weight: 700; }
+
+        .btn-signin { width: 100%; padding: 18px; border: none; border-radius: 12px; background: var(--grad); color: white; font-weight: 800; font-size: 1rem; text-transform: uppercase; letter-spacing: 0.5px; cursor: pointer; transition: 0.3s; margin-top: 10px; }
+        .btn-signin:hover { transform: translateY(-2px); filter: brightness(1.1); box-shadow: 0 10px 20px rgba(249,115,22,0.25); }
+        
+        .signup-row { text-align: center; margin-top: 30px; font-size: 0.95rem; color: var(--text-muted); }
+        .signup-row a { color: var(--orange); font-weight: 700; text-decoration: none; }
+
+        #notification { position: fixed; bottom: 20px; right: 20px; padding: 16px 24px; border-radius: 12px; background: #1f1f1f; border-left: 4px solid var(--orange); color: white; box-shadow: 0 10px 30px rgba(0,0,0,0.5); display: none; z-index: 10001; font-weight: 600; max-width: 320px; border-top: 1px solid rgba(255,255,255,0.05); }
+        
+        .modal { display: none; position: fixed; z-index: 1000; inset: 0; background: rgba(0, 0, 0, 0.85); backdrop-filter: blur(8px); align-items: center; justify-content: center; padding: 20px; }
+        .modal-content { background: #121212; width: 100%; max-width: 580px; border-radius: 24px; padding: 40px; position: relative; box-shadow: 0 25px 60px rgba(0,0,0,0.8); display: flex; flex-direction: column; max-height: 90vh; border: 1px solid rgba(249, 115, 22, 0.2); }
+        .modal-text { margin: 20px 0; overflow-y: auto; padding-right: 15px; color: #ccc; line-height: 1.6; text-align: left; }
+        .close-modal { position: absolute; top: 20px; right: 25px; font-size: 28px; color: #888; cursor: pointer; transition: 0.2s; }
+        .close-modal:hover { color: white; }
+        
+        @media (max-width: 1024px) { 
+            body { flex-direction: column !important; height: auto !important; } 
+            .left { flex: none !important; width: 100% !important; height: auto !important; min-height: 350px; position: relative !important; padding: 60px 20px !important; } 
+            .right { width: 100% !important; min-width: 100% !important; border-left: none !important; } 
+            .card { margin: 0 auto !important; width: 100% !important; max-width: 500px !important; } 
+            .name-grid, .field-row { grid-template-columns: 1fr; } 
+        }
+    </style>
+</head>
+<body>
+
+    <div id="loadingOverlay">
+        <div class="spinner"></div>
+        <p style="margin-top: 15px; font-weight: 600; color: #888;">Synchronizing Tactical Profile...</p>
+    </div>
+
+    <div id="notification"></div>
+
+    <section class="left">
+        <div class="left-bg"></div>
+        <div class="left-overlay"></div>
+        <div class="left-content">
+            <div class="brand-badge"><span class="badge-dot"></span> SEARCH AND RESCUE</div>
+            <h1 class="brand-big">
+                <span class="white-text">Spot the unseen.</span><br>
+                <span class="grad-text">Save the stranded.</span>
+            </h1>
+            <p class="left-tagline">Advanced drone surveillance, thermal mapping, and live GPS tracking integrated into a single tactical mission.</p>
+        </div>
+    </section>
+
+    <section class="right">
+        <div class="card">
+            <header class="card-header">
+                <div class="header-title-row">
+                    <svg id="backIcon" class="back-icon" onclick="prevSlide()" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="19" y1="12" x2="5" y2="12"></line>
+                        <polyline points="12 19 5 12 12 5"></polyline>
+                    </svg>
+                    <h1>Create Account</h1>
+                </div>
+                <p class="sub" id="slideIndicator">Step 1 of 2 — Personal Information</p>
+                <div class="progress-container">
+                    <div class="progress-bar active" id="bar1"></div>
+                    <div class="progress-bar" id="bar2"></div>
+                </div>
+            </header>
+
+            <form id="signupForm" novalidate>
+                <!-- SLIDE 1 -->
+                <div id="slide1">
+                    <div class="field">
+                        <label>Full Name</label>
+                        <div class="name-grid">
+                            <div>
+                                <input type="text" id="fname" placeholder="First *" required>
+                                <span class="error-hint" id="fname-err">First name is required.</span>
+                            </div>
+                            <div>
+                                <input type="text" id="mname" placeholder="Middle Name (write 'N/A' if none)" required>
+                                <span class="error-hint" id="mname-err">Use N/A if it does not apply.</span>
+                            </div>
+                            <div>
+                                <input type="text" id="lname" placeholder="Last *" required>
+                                <span class="error-hint" id="lname-err">Last name is required.</span>
+                            </div>
+                            <div>
+                                <input type="text" id="suffix" placeholder="Suffix (write 'N/A' if none)" required>
+                                <span class="error-hint" id="suffix-err">Use N/A if it does not apply.</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="field-row">
+                        <div class="field">
+                            <label>Age</label>
+                            <input type="number" id="age" min="18" placeholder="18+" required>
+                            <span class="error-hint" id="age-err">Age 18+ is required.</span>
+                        </div>
+                        <div class="field">
+                            <label>Sex</label>
+                            <div class="select-wrapper">
+                                <select id="sex" required>
+                                    <option value="" disabled selected>Select Sex</option>
+                                    <option value="male">Male</option>
+                                    <option value="female">Female</option>
+                                    <option value="other">Other</option>
+                                </select>
+                            </div>
+                            <span class="error-hint" id="sex-err">Please select your sex.</span>
+
+                            <!-- Dynamic specify input matching style branding -->
+                            <div id="customSexContainer" style="display: none; margin-top: 10px;">
+                                <input type="text" id="customSex" placeholder="Please specify your sex *" required>
+                                <span class="error-hint" id="customSex-err">Custom sex specification is required.</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="field">
+                        <label>Contact No.</label>
+                        <input type="tel" id="contact" placeholder="+63 9XX XXX XXXX" required>
+                        <span class="error-hint" id="contact-err">Contact number must match '+63' plus exactly 10 digits.</span>
+                    </div>
+                    <button type="button" class="btn-signin" onclick="validateAndGoToNext()">Next — Account Info</button>
+                </div>
+
+                <!-- SLIDE 2 -->
+                <div id="slide2" style="display: none;">
+                    <div class="field">
+                        <label>Email Address</label>
+                        <input type="email" id="email" placeholder="example@rescue.gov" required>
+                        <span class="error-hint" id="email-err">Please enter a valid email address containing an '@'.</span>
+                    </div>
+                    <div class="field">
+                        <label>Username (8 Char Limit)</label>
+                        <input type="text" id="username" maxlength="8" placeholder="Unique ID" required>
+                        <span class="error-hint" id="username-err">Username must be between 3 to 8 characters.</span>
+                    </div>
+                    <div class="field">
+                        <label>Password</label>
+                        <div class="pwd-wrapper">
+                            <input type="password" id="password" oninput="assessPassword()" placeholder="••••••••" required>
+                            <i class="fa-solid fa-eye pwd-toggle" id="togglePassword" onclick="toggleVisibility('password', 'togglePassword')"></i>
+                        </div>
+                        <span class="error-hint" id="password-err">Password is required.</span>
+                        <div class="strength-meter"><div id="strengthBar"></div></div>
+                        <span id="strengthText" class="hint"></span>
+                    </div>
+                    <div class="field">
+                        <label>Confirm Password</label>
+                        <div class="pwd-wrapper">
+                            <input type="password" id="confirmPassword" placeholder="••••••••" required>
+                            <i class="fa-solid fa-eye pwd-toggle" id="toggleConfirmPassword" onclick="toggleVisibility('confirmPassword', 'toggleConfirmPassword')"></i>
+                        </div>
+                        <span class="error-hint" id="confirmPassword-err">Passwords must match.</span>
+                    </div>
+                    
+                    <div class="terms-container">
+                        <label class="checkbox-wrapper">
+                            <input type="checkbox" id="terms" required>
+                            <span class="checkmark"></span>
+                            <span class="terms-text">I agree to the <a href="javascript:void(0)" onclick="openModal('tos')">Terms and Conditions</a> and <a href="javascript:void(0)" onclick="openModal('pp')">Privacy Policy</a>.</span>
+                        </label>
+                        <span class="error-hint" id="terms-err" style="display:none; color:var(--red); font-size:0.75rem; margin-top:6px;">You must accept the terms & conditions.</span>
+                    </div>
+
+                    <button type="submit" class="btn-signin">Complete Sign Up</button>
+                </div>
+            </form>
+
+            <div class="signup-row">
+                Already have an account? <a href="login.html">Sign In</a>
+            </div>
+        </div>
+    </section>
+
+    <div id="legalModal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closeModal()">&times;</span>
+            <div id="modalBody" class="modal-text"></div>
+            <button class="btn-signin" onclick="closeModal()" style="margin-top: 15px;">Acknowledge</button>
+        </div>
+    </div>
+
+    <!-- External SDKs -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-init.js"></script>
+
+    <script>
+        // Custom interactive notification overlay
+        function showNotification(msg) {
+            const n = document.getElementById('notification');
+            n.innerText = msg;
+            n.style.display = 'block';
+            setTimeout(() => { n.style.display = 'none'; }, 5000);
+        }
+
+        // Contact Number auto-formatter & strict filter. Enforces "+63" prefix + maximum 10 trailing digits.
+        const contactInput = document.getElementById('contact');
+        
+        // Initialize prefix on focus or click if empty
+        contactInput.addEventListener('focus', function() {
+            if (!this.value.startsWith('+63')) {
+                this.value = '+63 ';
+            }
+        });
+
+        contactInput.addEventListener('input', function(e) {
+            let cursorPosition = e.target.selectionStart;
+            let val = e.target.value;
+
+            // Ensure the input always starts with +63
+            if (!val.startsWith('+63')) {
+                val = '+63 ' + val.replace(/^\+?(63)?\s*/, '');
+            }
+
+            // Extract the alphanumeric body following "+63"
+            let body = val.substring(3);
+            // Replace any non-numeric figures
+            let numericBody = body.replace(/\D/g, '');
+
+            // Cap the numeric payload to exactly 10 digits
+            if (numericBody.length > 10) {
+                numericBody = numericBody.substring(0, 10);
+            }
+
+            // Standardize format as +63 XXXXXXXXXX
+            e.target.value = '+63 ' + numericBody;
+        });
+
+        // Toggle Password Visibility
+        function toggleVisibility(inputId, iconId) {
+            const input = document.getElementById(inputId);
+            const icon = document.getElementById(iconId);
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.classList.replace('fa-eye', 'fa-eye-slash');
+            } else {
+                input.type = 'password';
+                icon.classList.replace('fa-eye-slash', 'fa-eye');
+            }
+        }
+
+        // Dropdown dynamic specifying behavior
+        const sexSelect = document.getElementById('sex');
+        const customSexContainer = document.getElementById('customSexContainer');
+        const customSexInput = document.getElementById('customSex');
+
+        sexSelect.addEventListener('change', function() {
+            if (this.value === 'other') {
+                customSexContainer.style.display = 'block';
+                customSexInput.setAttribute('required', 'true');
+                customSexInput.classList.remove('invalid');
+                document.getElementById('customSex-err').style.display = 'none';
+            } else {
+                customSexContainer.style.display = 'none';
+                customSexInput.removeAttribute('required');
+                customSexInput.value = '';
+                customSexInput.classList.remove('invalid');
+                document.getElementById('customSex-err').style.display = 'none';
+            }
+        });
+
+        // Clean styling indicators on keyup or focus
+        const allInputs = document.querySelectorAll('#signupForm input, #signupForm select');
+        allInputs.forEach(input => {
+            input.addEventListener('input', function() {
+                this.classList.remove('invalid');
+                const errSpan = document.getElementById(this.id + '-err');
+                if (errSpan) errSpan.style.display = 'none';
+            });
+            input.addEventListener('change', function() {
+                this.classList.remove('invalid');
+                const errSpan = document.getElementById(this.id + '-err');
+                if (errSpan) errSpan.style.display = 'none';
+            });
+        });
+
+        // Validation logic for slide 1
+        function validateSlide1() {
+            let isValid = true;
+            
+            const fname = document.getElementById('fname');
+            const mname = document.getElementById('mname');
+            const lname = document.getElementById('lname');
+            const suffix = document.getElementById('suffix');
+            const age = document.getElementById('age');
+            const sex = document.getElementById('sex');
+            const contact = document.getElementById('contact');
+
+            // 1. First Name Check
+            if (!fname.value.trim()) {
+                markInvalid(fname, "First name is required.");
+                isValid = false;
+            }
+
+            // 2. Middle Name Check (Required. Must use N/A explicitly if none)
+            if (!mname.value.trim()) {
+                markInvalid(mname, "Middle name cannot be blank. Enter 'N/A' if it doesn't apply.");
+                isValid = false;
+            }
+
+            // 3. Last Name Check
+            if (!lname.value.trim()) {
+                markInvalid(lname, "Last name is required.");
+                isValid = false;
+            }
+
+            // 4. Suffix Check (Required. Must use N/A explicitly if none)
+            if (!suffix.value.trim()) {
+                markInvalid(suffix, "Suffix cannot be blank. Enter 'N/A' if it doesn't apply.");
+                isValid = false;
+            }
+
+            // 5. Age Check (18+)
+            const ageVal = parseInt(age.value);
+            if (!age.value || isNaN(ageVal) || ageVal < 18) {
+                markInvalid(age, "You must be 18 or older to register.");
+                isValid = false;
+            }
+
+            // 6. Sex Selection
+            if (!sex.value) {
+                markInvalid(sex, "Please specify biological/identifying sex.");
+                isValid = false;
+            } else if (sex.value === 'other') {
+                if (!customSexInput.value.trim()) {
+                    markInvalid(customSexInput, "Please specify your sex.");
+                    isValid = false;
+                }
+            }
+
+            // 7. Contact Number verification (+63 + 10 digits = 14 chars with space: "+63 9XXXXXXXXX")
+            const contactRaw = contact.value.replace(/\s+/g, ''); // strip spaces
+            if (contactRaw.length !== 13 || !contactRaw.startsWith('+63')) {
+                markInvalid(contact, "Requires +63 followed by exactly 10 digits.");
+                isValid = false;
+            }
+
+            return isValid;
+        }
+
+        function markInvalid(element, msg) {
+            element.classList.add('invalid');
+            const errSpan = document.getElementById(element.id + '-err');
+            if (errSpan) {
+                errSpan.innerText = msg;
+                errSpan.style.display = 'block';
+            }
+        }
+
+        function validateAndGoToNext() {
+            if (validateSlide1()) {
+                document.getElementById('slide1').style.display = 'none';
+                document.getElementById('slide2').style.display = 'block';
+                document.getElementById('backIcon').style.display = 'block';
+                document.getElementById('slideIndicator').innerText = "Step 2 of 2 — Account Info";
+                document.getElementById('bar2').classList.add('active');
+            } else {
+                showNotification("Please resolve validation errors. Enter 'N/A' for optional fields that don't apply.");
+            }
+        }
+
+        function prevSlide() {
+            document.getElementById('slide1').style.display = 'block';
+            document.getElementById('slide2').style.display = 'none';
+            document.getElementById('backIcon').style.display = 'none';
+            document.getElementById('slideIndicator').innerText = "Step 1 of 2 — Personal Information";
+            document.getElementById('bar2').classList.remove('active');
+        }
+
+        // Real-time password safety metric
+        function assessPassword() {
+            const pwd = document.getElementById('password').value;
+            const bar = document.getElementById('strengthBar');
+            const text = document.getElementById('strengthText');
+            let strength = 0;
+            if (pwd.length >= 8) strength++;
+            if (/[A-Z]/.test(pwd)) strength++;
+            if (/[0-9]/.test(pwd)) strength++;
+            if (/[^A-Za-z0-9]/.test(pwd)) strength++;
+            const colors = ["#DC2626", "#F97316", "#EAB308", "#16A34A"];
+            const labels = ["Weak", "Fair", "Good", "Strong"];
+            bar.style.width = (strength * 25) + "%";
+            bar.style.background = colors[strength - 1] || "transparent";
+            text.innerText = labels[strength - 1] || "";
+            text.style.color = colors[strength - 1] || "#eee";
+        }
+
+        // Modal triggers styled beautifully for the operational SAR identity
+        function openModal(type) {
+            const legalData = {
+                tos: `
+                    <h2 style="color: var(--orange); margin-bottom: 20px; font-weight: 900; font-size: 1.8rem; letter-spacing: -0.5px;">Terms and Conditions</h2>
+                    <ul style="list-style: none; padding: 0; display: flex; flex-direction: column; gap: 16px;">
+                        <li style="border-left: 2px solid var(--orange); padding-left: 15px;">
+                            <strong style="color: white; display: block; font-size: 0.95rem; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px;">Compliance</strong>
+                            <span style="font-size: 0.9rem; color: #aaa; line-height: 1.5;">Operators are entirely responsible for following local drone aviation laws (like FAA/EASA rules), licensing, and airspace restrictions.</span>
+                        </li>
+                        <li style="border-left: 2px solid var(--orange); padding-left: 15px;">
+                            <strong style="color: white; display: block; font-size: 0.95rem; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px;">Prohibited Use</strong>
+                            <span style="font-size: 0.9rem; color: #aaa; line-height: 1.5;">The system cannot be used for unauthorized surveillance, military combat (without a specific contract), or interfering with official first responders.</span>
+                        </li>
+                        <li style="border-left: 2px solid var(--orange); padding-left: 15px;">
+                            <strong style="color: white; display: block; font-size: 0.95rem; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px;">Liability Limits</strong>
+                            <span style="font-size: 0.9rem; color: #aaa; line-height: 1.5;">Eagle Eye is an assistive tool, not a replacement for human rescue teams. It does not guarantee 100% detection accuracy and is not liable for injuries, failed rescues, or crashed drone hardware.</span>
+                        </li>
+                        <li style="border-left: 2px solid var(--orange); padding-left: 15px;">
+                            <strong style="color: white; display: block; font-size: 0.95rem; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px;">Data Ownership</strong>
+                            <span style="font-size: 0.9rem; color: #aaa; line-height: 1.5;">You own the telemetry and video feeds you upload; Eagle Eye just has the right to process it to make the app work.</span>
+                        </li>
+                    </ul>
+                `,
+                pp: `
+                    <h2 style="color: var(--orange); margin-bottom: 20px; font-weight: 900; font-size: 1.8rem; letter-spacing: -0.5px;">Privacy Policy</h2>
+                    <ul style="list-style: none; padding: 0; display: flex; flex-direction: column; gap: 16px;">
+                        <li style="border-left: 2px solid var(--orange); padding-left: 15px;">
+                            <strong style="color: white; display: block; font-size: 0.95rem; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px;">Data Collected</strong>
+                            <span style="font-size: 0.9rem; color: #aaa; line-height: 1.5;">Account info, drone GPS coordinates, flight logs, and live camera/thermal imagery.</span>
+                        </li>
+                        <li style="border-left: 2px solid var(--orange); padding-left: 15px;">
+                            <strong style="color: white; display: block; font-size: 0.95rem; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px;">Data Usage</strong>
+                            <span style="font-size: 0.9rem; color: #aaa; line-height: 1.5;">Strictly used to provide real-time mapping, alert dispatchers, and train the detection AI (via anonymized data).</span>
+                        </li>
+                        <li style="border-left: 2px solid var(--orange); padding-left: 15px;">
+                            <strong style="color: white; display: block; font-size: 0.95rem; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px;">No Selling</strong>
+                            <span style="font-size: 0.9rem; color: #aaa; line-height: 1.5;">Your data is never sold. It is only shared with cloud hosts, legal authorities if subpoenaed, or emergency services (if you opt-in to route data to them).</span>
+                        </li>
+                        <li style="border-left: 2px solid var(--orange); padding-left: 15px;">
+                            <strong style="color: white; display: block; font-size: 0.95rem; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px;">Security</strong>
+                            <span style="font-size: 0.9rem; color: #aaa; line-height: 1.5;">Built with industry-standard encryption (AES-256 and TLS/SSL) to protect sensitive rescue feeds.</span>
+                        </li>
+                    </ul>
+                `
+            };
+            document.getElementById('modalBody').innerHTML = legalData[type];
+            document.getElementById('legalModal').style.display = "flex";
+        }
+        function closeModal() { document.getElementById('legalModal').style.display = "none"; }
+
+        // Slide 2 Validations and Final Registration logic
+        document.getElementById('signupForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            // Perform Slide 1 validation check first to guarantee integrity
+            if (!validateSlide1()) {
+                prevSlide();
+                showNotification("Please check Step 1 fields for errors.");
+                return;
+            }
+
+            let isValid = true;
+            const email = document.getElementById('email');
+            const username = document.getElementById('username');
+            const password = document.getElementById('password');
+            const confirmPassword = document.getElementById('confirmPassword');
+            const terms = document.getElementById('terms');
+            const termsErr = document.getElementById('terms-err');
+
+            // 1. Email Verification (Must contain '@' symbol)
+            if (!email.value.trim() || !email.value.includes('@')) {
+                markInvalid(email, "Please enter a valid email address containing an '@' symbol.");
+                isValid = false;
+            }
+
+            // 2. Username Check (3 to 8 limit)
+            const unameVal = username.value.trim();
+            if (!unameVal || unameVal.length < 3 || unameVal.length > 8) {
+                markInvalid(username, "Username must be between 3 and 8 characters.");
+                isValid = false;
+            }
+
+            // 3. Password presence
+            if (!password.value) {
+                markInvalid(password, "Password is required.");
+                isValid = false;
+            }
+
+            // 4. Confirm Password Match
+            if (password.value !== confirmPassword.value) {
+                markInvalid(confirmPassword, "Passwords do not match.");
+                isValid = false;
+            }
+
+            // 5. Terms acceptance
+            if (!terms.checked) {
+                termsErr.style.display = 'block';
+                isValid = false;
+            } else {
+                termsErr.style.display = 'none';
+            }
+
+            if (!isValid) {
+                showNotification("Registration parameters are invalid or incomplete.");
+                return;
+            }
+
+            if (!window.supabase) {
+                showNotification("Critical Error: Tactical network database configuration offline.");
+                return;
+            }
+
+            document.getElementById('loadingOverlay').style.display = 'flex';
+
+            // Generate Mission-Safe Tactical ID
+            const year = new Date().getFullYear();
+            const unique = Math.floor(10000 + Math.random() * 90000);
+            const tacticalId = `US-${year}-${unique}`;
+
+            // Handle custom sex specifications
+            const chosenSex = sexSelect.value;
+            const finalSex = chosenSex === 'other' ? customSexInput.value.trim() : chosenSex;
+
+            const userData = {
+                id: tacticalId, 
+                first_name: document.getElementById('fname').value.trim(),
+                middle_name: document.getElementById('mname').value.trim(),
+                last_name: document.getElementById('lname').value.trim(),
+                suffix: document.getElementById('suffix').value.trim(),
+                age: parseInt(document.getElementById('age').value),
+                sex: finalSex,
+                contact_no: document.getElementById('contact').value.replace(/\s+/g, ''),
+                email: email.value.trim(),
+                username: unameVal,
+                password: password.value,
+                role: 'user',
+                created_at: new Date().toISOString()
+            };
+
+            try {
+                const { error } = await window.supabase.from('accounts').insert([userData]);
+                if (error) throw error;
+                showNotification("Profile synthesized successfully: " + tacticalId);
+                setTimeout(() => { window.location.href = 'login.html'; }, 2500);
+            } catch (err) {
+                console.error("Supabase Sync Failure:", err);
+                showNotification("Database rejected entry: " + err.message);
+            } finally {
+                document.getElementById('loadingOverlay').style.display = 'none';
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Eagle Eye | Admin Dashboard</title>
+    
+    <link rel="icon" type="image/png" href="favicon.png">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --black: #0a0a0a; 
+            --orange: #F97316; 
+            --red: #DC2626;
+            --green: #10B981;
+            --gray: #6B7280;
+            --text-main: #ffffff; 
+            --text-dim: rgba(255, 255, 255, 0.4); /* Synchronized with home.html */
+            --grad: linear-gradient(90deg, #F97316 0%, #DC2626 100%);
+            --v-grad: linear-gradient(180deg, #F97316 0%, #DC2626 100%);
+            --border: rgba(255, 255, 255, 0.08);
+            --glass: rgba(18, 18, 18, 0.6);
+            --card-bg: #121212;
+        }
+
+        body { 
+            height: 100vh; 
+            font-family: 'Inter', sans-serif; 
+            background: var(--black); 
+            color: var(--text-main); 
+            display: flex; 
+            flex-direction: column; 
+            overflow: hidden; 
+        }
+
+        /* ── CUSTOM SCROLLBARS ── */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #111; border-left: 1px solid var(--border); }
+        ::-webkit-scrollbar-thumb { background: var(--v-grad); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { filter: brightness(1.2); }
+
+        /* ── NAVIGATION ── */
+        nav { 
+            display: flex; align-items: center; justify-content: space-between; 
+            padding: 0 44px; height: 80px; border-bottom: 1px solid var(--border); 
+            background: var(--black); z-index: 1000; flex-shrink: 0; 
+        }
+        .nav-logo { display: flex; align-items: center; gap: 14px; text-decoration: none; transition: opacity 0.2s; }
+        .nav-logo:hover { opacity: 0.8; }
+        
+        .brand-logo { 
+            height: 50px; 
+            width: auto; 
+            object-fit: contain; 
+            filter: invert(1) contrast(200%); 
+            mix-blend-mode: screen; 
+        }
+
+        .nav-right { display: flex; align-items: center; gap: 32px; height: 100%; }
+        .nav-links { display: flex; gap: 32px; height: 100%; align-items: center; }
+        .nav-links a { 
+            position: relative; font-weight: 700; font-size: 0.85rem; color: var(--text-dim); 
+            text-decoration: none; text-transform: uppercase; letter-spacing: 0.05em;
+            height: 100%; display: flex; align-items: center; transition: all .2s ease;
+        }
+        .nav-links a:hover, .nav-links a.active { color: #fff; }
+        .nav-links a.active::after { 
+            content: ''; position: absolute; bottom: 0; left: 0; right: 0; 
+            height: 2px; background: var(--grad); box-shadow: 0 0 10px rgba(249, 115, 22, 0.5);
+        }
+
+        .nav-user { position: relative; z-index: 9999; display: flex; align-items: center; }
+        .dots-btn { background: transparent; border: none; color: var(--text-dim); cursor: pointer; padding: 10px; border-radius: 10px; transition: all 0.2s; }
+        .dots-btn:hover { background: rgba(255, 255, 255, 0.05); color: #fff; }
+        
+        .dropdown-menu { 
+            position: absolute; top: calc(100% + 10px); right: 0; width: 180px; 
+            background: #121212; border: 1px solid var(--border); border-radius: 16px; 
+            padding: 8px; display: none; flex-direction: column; 
+            box-shadow: 0 20px 50px rgba(0,0,0,0.6); backdrop-filter: blur(10px); 
+        }
+        .dropdown-menu.show { display: flex; animation: dropIn 0.2s ease-out; }
+        @keyframes dropIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+
+        .dropdown-menu a { padding: 12px 16px; text-decoration: none; color: var(--text-dim); font-size: 0.85rem; font-weight: 600; border-radius: 8px; transition: all 0.2s; }
+        .dropdown-menu a:hover { background: rgba(255, 255, 255, 0.05); color: #fff; }
+        .dropdown-divider { border: 0; border-top: 1px solid var(--border); margin: 8px 0; }
+        .logout-link { color: var(--red) !important; }
+
+        /* ── LAYOUT ── */
+        .dashboard-layout { flex: 1; display: flex; flex-direction: column; padding: 30px 44px; overflow-y: auto; }
+        
+        .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 30px; }
+        .stat-card { 
+            background: var(--card-bg); border: 1px solid var(--border); 
+            border-radius: 16px; padding: 24px; display: flex; align-items: center; gap: 20px;
+        }
+        .stat-icon { width: 50px; height: 50px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; }
+        .icon-blue { background: rgba(59, 130, 246, 0.1); color: #3B82F6; }
+        .icon-orange { background: rgba(249, 115, 22, 0.1); color: var(--orange); }
+        .icon-red { background: rgba(220, 38, 38, 0.1); color: var(--red); }
+        
+        .stat-info { display: flex; flex-direction: column; gap: 4px; }
+        .s-label { font-size: 0.65rem; font-weight: 800; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; }
+        .s-value { font-size: 2rem; font-weight: 900; line-height: 1; }
+
+        /* ── TABLE SECTION ── */
+        .table-section { flex: 1; display: flex; flex-direction: column; min-height: 400px; background: var(--card-bg); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; }
+        .table-top { padding: 16px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+        .search-wrapper { position: relative; width: 100%; max-width: 400px; }
+        .search-wrapper i { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-dim); }
+        .search-bar { 
+            width: 100%; background: #0a0a0a; border: 1px solid var(--border); 
+            border-radius: 8px; padding: 12px 16px 12px 40px; color: #fff; outline: none; font-size: 0.9rem;
+        }
+
+        .refresh-btn { background: transparent; border: 1px solid var(--border); color: #fff; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-weight: 700; font-size: 0.8rem; }
+        .refresh-btn:hover { background: rgba(255,255,255,0.05); }
+
+        .table-container { flex: 1; overflow: auto; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        thead th { 
+            position: sticky; top: 0; z-index: 10; background: #151515; padding: 16px; 
+            text-align: left; color: var(--text-dim); font-weight: 800; 
+            border-bottom: 1px solid var(--border); cursor: pointer; text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.5px;
+            transition: all 0.2s;
+        }
+        thead th:hover { background: #1a1a1a; color: #fff; }
+        thead th i { margin-left: 8px; font-size: 0.75rem; color: var(--orange); opacity: 0.4; }
+        thead th.active-sort { color: #fff; }
+        thead th.active-sort i { opacity: 1; }
+
+        tbody td { padding: 16px; border-bottom: 1px solid var(--border); color: #ccc; white-space: nowrap; }
+        tbody tr:hover { background: rgba(255, 255, 255, 0.02); }
+        
+        .id-cell { font-family: monospace; font-weight: 700; color: var(--orange); letter-spacing: 0.5px; }
+        .username-cell { font-weight: 700; color: #fff; }
+
+        .role-select {
+            background: #0a0a0a; border: 1px solid var(--border); color: #fff;
+            padding: 6px 10px; border-radius: 6px; font-weight: 700; font-size: 0.8rem;
+            cursor: pointer; outline: none;
+        }
+
+        /* Status Badges */
+        .status-badge {
+            display: inline-flex; align-items: center; gap: 6px;
+            font-weight: 800; font-size: 0.7rem; text-transform: uppercase;
+            padding: 4px 8px; border-radius: 4px; background: rgba(255,255,255,0.03);
+        }
+        .status-badge::before { content: ''; width: 6px; height: 6px; border-radius: 50%; }
+        
+        .badge-online { color: var(--green); }
+        .badge-online::before { background: var(--green); box-shadow: 0 0 8px var(--green); }
+        
+        .badge-offline { color: var(--gray); }
+        .badge-offline::before { background: var(--gray); }
+
+        .btn-view { background: transparent; color: var(--orange); border: none; font-weight: 800; cursor: pointer; text-transform: uppercase; font-size: 0.75rem; transition: 0.2s; }
+        .btn-view:hover { color: #fff; }
+
+        /* ── MODALS ── */
+        .modal-overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(5px);
+            z-index: 9999; display: none; align-items: center; justify-content: center;
+        }
+        .modal-card {
+            background: #111; border: 1px solid var(--border); border-radius: 16px;
+            width: 100%; max-width: 400px; padding: 30px; box-shadow: 0 20px 50px rgba(0,0,0,0.8);
+            position: relative;
+        }
+        .close-btn { position: absolute; top: 20px; right: 20px; background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 1.2rem; }
+        .close-btn:hover { color: #fff; }
+        
+        .auth-input { width: 100%; background: #000; border: 1px solid var(--border); padding: 12px 16px; border-radius: 8px; color: #fff; margin-bottom: 15px; outline: none;}
+        .auth-input:focus { border-color: var(--orange); }
+        .btn-submit { width: 100%; background: var(--grad); border: none; color: #fff; padding: 12px; border-radius: 8px; font-weight: 800; cursor: pointer; text-transform: uppercase; letter-spacing: 1px;}
+        .error-msg { color: var(--red); font-size: 0.75rem; font-weight: 700; margin-bottom: 10px; display: none; text-align: center;}
+
+        /* Password Wrapper for Toggle */
+        .pwd-wrapper { position: relative; width: 100%; display: flex; align-items: center; }
+        .pwd-wrapper input { padding-right: 45px; margin-bottom: 0; }
+        .pwd-toggle { position: absolute; right: 14px; cursor: pointer; color: var(--text-dim); font-size: 0.9rem; z-index: 2; }
+        .pwd-toggle:hover { color: #fff; }
+
+        .info-grid { display: flex; flex-direction: column; gap: 12px; }
+        .info-row { display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 8px; align-items: center; }
+        .info-lbl { color: var(--text-dim); font-size: 0.75rem; font-weight: 700; text-transform: uppercase; }
+        .info-val { color: #fff; font-size: 0.85rem; font-weight: 600; text-align: right;}
+        .info-pwd-display { display: flex; align-items: center; gap: 10px; color: var(--orange); font-family: monospace; font-weight: 700; }
+
+        /* ── TOAST NOTIFICATION ── */
+        .toast-notification {
+            position: fixed; bottom: -100px; right: 30px; background: rgba(18, 18, 18, 0.95);
+            border: 1px solid var(--orange); color: #fff; padding: 16px 24px; border-radius: 12px;
+            display: flex; align-items: center; gap: 12px; box-shadow: 0 10px 30px rgba(249, 115, 22, 0.3);
+            z-index: 10000; transition: bottom 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            backdrop-filter: blur(10px); font-size: 0.85rem; font-weight: 600;
+        }
+        .toast-notification.show { bottom: 30px; }
+    </style>
+</head>
+<body>
+
+<nav>
+    <a href="admin.html" class="nav-logo">
+        <img src="logo.png" alt="Eagle Eye" class="brand-logo">
+    </a>
+
+    <div class="nav-right">
+        <div class="nav-links">
+            <a href="admin.html" class="active">Admin Dashboard</a>
+            <a href="reports.html">Reports</a>
+            <a href="audit.html">Audit Logs</a>
+        </div>
+
+        <div class="nav-user">
+            <button class="dots-btn" id="menuBtn">
+                <!-- Synchronized SVG from home.html -->
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="1"></circle>
+                    <circle cx="12" cy="5" r="1"></circle>
+                    <circle cx="12" cy="19" r="1"></circle>
+                </svg>
+            </button>
+            <div class="dropdown-menu" id="dropdownMenu">
+                <a href="profile.html">Account Profile</a>
+                <hr class="dropdown-divider">
+                <a href="index.html" class="logout-link" onclick="localStorage.clear()">Log Out</a>
+            </div>
+        </div>
+    </div>
+</nav>
+
+<main class="dashboard-layout">
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-icon icon-blue"><i class="fa-solid fa-users"></i></div>
+            <div class="stat-info">
+                <span class="s-label">Total Users</span>
+                <span class="s-value" id="count-users">0</span>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon icon-orange"><i class="fa-solid fa-eye"></i></div>
+            <div class="stat-info">
+                <span class="s-label">Active Operators</span>
+                <span class="s-value" id="count-ops">0</span>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon icon-red"><i class="fa-solid fa-shield-halved"></i></div>
+            <div class="stat-info">
+                <span class="s-label">System Admins</span>
+                <span class="s-value" id="count-admins">0</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="table-section">
+        <div class="table-top">
+            <div class="search-wrapper">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" id="searchInput" class="search-bar" placeholder="Search personnel records...">
+            </div>
+            <button class="refresh-btn" onclick="fetchAccounts()"><i class="fa-solid fa-rotate"></i> Sync Data</button>
+        </div>
+        <div class="table-container">
+            <table id="usersTable">
+                <thead>
+                    <tr>
+                        <th data-col="0" onclick="sortTable(0, this)">Personnel ID <i class="fa-solid fa-sort"></i></th>
+                        <th data-col="1" onclick="sortTable(1, this)">Registration Date <i class="fa-solid fa-sort"></i></th>
+                        <th data-col="2" onclick="sortTable(2, this)">Username <i class="fa-solid fa-sort"></i></th>
+                        <th data-col="3" onclick="sortTable(3, this)">Email <i class="fa-solid fa-sort"></i></th>
+                        <th data-col="4" onclick="sortTable(4, this)">Account Role <i class="fa-solid fa-sort"></i></th>
+                        <th data-col="5" onclick="sortTable(5, this)">System Status <i class="fa-solid fa-sort"></i></th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="usersData"></tbody>
+            </table>
+        </div>
+    </div>
+</main>
+
+<!-- AUTH MODAL -->
+<div class="modal-overlay" id="authModal">
+    <div class="modal-card">
+        <button class="close-btn" onclick="cancelAuthAction()"><i class="fa-solid fa-xmark"></i></button>
+        <h2 style="font-size: 1.2rem; margin-bottom: 10px;">Security Verification</h2>
+        <p style="font-size: 0.8rem; color: var(--text-dim); margin-bottom: 20px;">Input 'admineagleeye' to authorize this personnel adjustment.</p>
+        <div class="error-msg" id="authError">Invalid Master Authorization Password</div>
+        
+        <div class="pwd-wrapper" style="margin-bottom: 15px;">
+            <input type="password" id="adminPwdInput" class="auth-input" placeholder="Master Password">
+            <i class="fa-solid fa-eye pwd-toggle" id="authEye" onclick="togglePassword('adminPwdInput', 'authEye')"></i>
+        </div>
+
+        <button class="btn-submit" onclick="verifyAdminAction()">Confirm Adjustment</button>
+    </div>
+</div>
+
+<!-- PERSONNEL INFO MODAL -->
+<div class="modal-overlay" id="infoModal">
+    <div class="modal-card">
+        <button class="close-btn" onclick="closeInfoModal()"><i class="fa-solid fa-xmark"></i></button>
+        <h2 style="font-size: 1.2rem; margin-bottom: 20px;">Personnel Detailed View</h2>
+        <div class="info-grid" id="infoContainer"></div>
+    </div>
+</div>
+
+<div id="toastNotification" class="toast-notification">
+    <i class="fa-solid fa-circle-check" style="color: #4ADE80;"></i>
+    <span id="toastMessage"></span>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-init.js"></script>
+
+<script>
+    let currentAccounts = [];
+    let pendingAction = null;
+    let sortState = { index: null, dir: 'asc' };
+
+    // Personnel ID Generator
+    function generatePersonnelId(role, currentId) {
+        const prefixes = { 'admin': 'AD', 'operator': 'OP', 'user': 'US' };
+        const prefix = prefixes[role.toLowerCase()] || 'US';
+        const year = new Date().getFullYear();
+        
+        let uniquePart = Math.floor(10000 + Math.random() * 90000).toString();
+        if (currentId && currentId.includes('-')) {
+            const parts = currentId.split('-');
+            if (parts.length >= 3) uniquePart = parts[2];
+        }
+        
+        return `${prefix}-${year}-${uniquePart}`;
+    }
+
+    // Navigation / Dropdown
+    const menuBtn = document.getElementById('menuBtn');
+    const dropdownMenu = document.getElementById('dropdownMenu');
+    menuBtn.addEventListener('click', (e) => { e.stopPropagation(); dropdownMenu.classList.toggle('show'); });
+    document.addEventListener('click', () => dropdownMenu.classList.remove('show'));
+
+    // Password Toggle Helper
+    function togglePassword(inputId, iconId) {
+        const input = document.getElementById(inputId);
+        const icon = document.getElementById(iconId);
+        if (input.type === 'password') {
+            input.type = 'text';
+            icon.classList.replace('fa-eye', 'fa-eye-slash');
+        } else {
+            input.type = 'password';
+            icon.classList.replace('fa-eye-slash', 'fa-eye');
+        }
+    }
+
+    async function fetchAccounts() {
+        if (!window.supabase) return;
+        try {
+            const { data, error } = await window.supabase
+                .from('accounts')
+                .select('*')
+                .order('created_at', { ascending: false });
+            if (error) throw error;
+            currentAccounts = data;
+            renderDashboard(data);
+        } catch (err) {
+            showToast("System Sync Error: " + err.message, true);
+        }
+    }
+
+    function renderDashboard(accounts) {
+        const tbody = document.getElementById('usersData');
+        tbody.innerHTML = '';
+        let uCount = 0, oCount = 0, aCount = 0;
+
+        accounts.forEach(user => {
+            const role = (user.role || 'user').toLowerCase();
+            const status = (user.status || 'inactive').toLowerCase(); 
+            
+            if (role === 'user') uCount++;
+            else if (role === 'operator') oCount++;
+            else if (role === 'admin') aCount++;
+
+            const date = new Date(user.created_at).toLocaleDateString();
+            const tr = document.createElement('tr');
+            
+            const statusLabel = status === 'active' ? 'Online' : 'Offline';
+            const statusBadgeClass = status === 'active' ? 'badge-online' : 'badge-offline';
+
+            tr.innerHTML = `
+                <td class="id-cell">${user.id}</td>
+                <td>${date}</td>
+                <td class="username-cell">${user.username}</td>
+                <td>${user.email}</td>
+                <td>
+                    <select class="role-select" onchange="initiateRoleChange(event, '${user.id}', this)">
+                        <option value="user" ${role === 'user' ? 'selected' : ''}>User</option>
+                        <option value="operator" ${role === 'operator' ? 'selected' : ''}>Operator</option>
+                        <option value="admin" ${role === 'admin' ? 'selected' : ''}>Admin</option>
+                    </select>
+                </td>
+                <td>
+                    <span class="status-badge ${statusBadgeClass}">${statusLabel}</span>
+                </td>
+                <td><button class="btn-view" onclick="showInfo('${user.id}')">View Details</button></td>
+            `;
+            tbody.appendChild(tr);
+        });
+
+        document.getElementById('count-users').innerText = uCount;
+        document.getElementById('count-ops').innerText = oCount;
+        document.getElementById('count-admins').innerText = aCount;
+        
+        applySearchFilter();
+    }
+
+    function initiateRoleChange(e, userId, selectElem) {
+        const user = currentAccounts.find(u => u.id === userId);
+        pendingAction = { userId, newRole: selectElem.value, oldRole: user.role, selectRef: selectElem };
+        document.getElementById('authModal').style.display = 'flex';
+        document.getElementById('adminPwdInput').focus();
+    }
+
+    async function verifyAdminAction() {
+        const pwd = document.getElementById('adminPwdInput').value;
+        if (pwd === 'admineagleeye') {
+            const success = await executeRoleUpdate();
+            if (success) {
+                pendingAction = null;
+                document.getElementById('authModal').style.display = 'none';
+                document.getElementById('authError').style.display = 'none';
+                document.getElementById('adminPwdInput').value = '';
+            }
+        } else {
+            document.getElementById('authError').style.display = 'block';
+        }
+    }
+
+    async function executeRoleUpdate() {
+        if (!pendingAction) return false;
+        try {
+            const newId = generatePersonnelId(pendingAction.newRole, pendingAction.userId);
+            
+            const { error } = await window.supabase
+                .from('accounts')
+                .update({ role: pendingAction.newRole, id: newId })
+                .eq('id', pendingAction.userId);
+
+            if (error) throw error;
+            
+            showToast(`Personnel Role Updated: ${newId} synchronized.`);
+            fetchAccounts();
+            return true;
+        } catch (err) {
+            pendingAction.selectRef.value = pendingAction.oldRole;
+            showToast("Update Failed: Database verification error.", true);
+            return false;
+        }
+    }
+
+    function cancelAuthAction() {
+        if (pendingAction) pendingAction.selectRef.value = pendingAction.oldRole;
+        document.getElementById('authModal').style.display = 'none';
+        pendingAction = null;
+    }
+
+    function showInfo(userId) {
+        const user = currentAccounts.find(u => u.id === userId);
+        if (!user) return;
+        const status = (user.status || 'inactive').toLowerCase();
+        const statusLabel = status === 'active' ? 'Online' : 'Offline';
+        const statusBadgeClass = status === 'active' ? 'badge-online' : 'badge-offline';
+        const container = document.getElementById('infoContainer');
+        
+        container.innerHTML = `
+            <div class="info-row"><span class="info-lbl">Personnel ID</span><span class="info-val id-cell">${user.id}</span></div>
+            <div class="info-row"><span class="info-lbl">System Status</span><span class="info-val ${statusBadgeClass}" style="font-weight:900;">${statusLabel}</span></div>
+            <div class="info-row"><span class="info-lbl">Full Name</span><span class="info-val">${user.first_name} ${user.last_name}</span></div>
+            <div class="info-row"><span class="info-lbl">Contact No.</span><span class="info-val">${user.contact_no}</span></div>
+            <div class="info-row"><span class="info-lbl">Email Address</span><span class="info-val" style="color:var(--orange)">${user.email}</span></div>
+            <div class="info-row" style="border:none;">
+                <span class="info-lbl">Access Password</span>
+                <span class="info-pwd-display">
+                    <span id="userPwdVal">••••••••</span>
+                    <i class="fa-solid fa-eye" id="userPwdEye" style="cursor:pointer" onclick="toggleUserPwdView('${user.password}')"></i>
+                </span>
+            </div>
+        `;
+        document.getElementById('infoModal').style.display = 'flex';
+    }
+
+    function toggleUserPwdView(actualPwd) {
+        const valSpan = document.getElementById('userPwdVal');
+        const eye = document.getElementById('userPwdEye');
+        if (valSpan.innerText === '••••••••') {
+            valSpan.innerText = actualPwd;
+            eye.classList.replace('fa-eye', 'fa-eye-slash');
+        } else {
+            valSpan.innerText = '••••••••';
+            eye.classList.replace('fa-eye-slash', 'fa-eye');
+        }
+    }
+
+    function closeInfoModal() { document.getElementById('infoModal').style.display = 'none'; }
+
+    function showToast(msg, isError = false) {
+        const t = document.getElementById('toastNotification');
+        document.getElementById('toastMessage').innerText = msg;
+        t.style.borderColor = isError ? "var(--red)" : "var(--orange)";
+        t.classList.add('show');
+        setTimeout(() => t.classList.remove('show'), 4000);
+    }
+
+    function applySearchFilter() {
+        const val = document.getElementById('searchInput').value.toLowerCase();
+        const rows = document.querySelectorAll("#usersData tr");
+        rows.forEach(row => {
+            row.style.display = row.innerText.toLowerCase().includes(val) ? "" : "none";
+        });
+    }
+
+    document.getElementById('searchInput').addEventListener('input', applySearchFilter);
+
+    function sortTable(n, header) {
+        const table = document.getElementById("usersTable");
+        const tbody = document.getElementById("usersData");
+        const rows = Array.from(tbody.querySelectorAll("tr"));
+        
+        if (sortState.index === n) {
+            sortState.dir = sortState.dir === 'asc' ? 'desc' : 'asc';
+        } else {
+            sortState.index = n;
+            sortState.dir = 'asc';
+        }
+
+        const allHeaders = table.querySelectorAll('thead th');
+        allHeaders.forEach(th => {
+            th.classList.remove('active-sort');
+            const icon = th.querySelector('i');
+            if(icon) icon.className = 'fa-solid fa-sort';
+        });
+
+        header.classList.add('active-sort');
+        const activeIcon = header.querySelector('i');
+        if(activeIcon) {
+            activeIcon.className = sortState.dir === 'asc' ? 'fa-solid fa-sort-up' : 'fa-solid fa-sort-down';
+        }
+
+        const sortedRows = rows.sort((a, b) => {
+            let valA, valB;
+            const cellA = a.getElementsByTagName("TD")[n];
+            const cellB = b.getElementsByTagName("TD")[n];
+
+            if (n === 4) { // Role select
+                valA = cellA.querySelector('select').value.toLowerCase();
+                valB = cellB.querySelector('select').value.toLowerCase();
+            } else if (n === 5) { // Status badge
+                valA = cellA.innerText.toLowerCase();
+                valB = cellB.innerText.toLowerCase();
+            } else if (n === 1) { // Joined Date
+                valA = new Date(cellA.innerText);
+                valB = new Date(cellB.innerText);
+            } else {
+                valA = cellA.innerText.toLowerCase();
+                valB = cellB.innerText.toLowerCase();
+            }
+
+            if (valA < valB) return sortState.dir === 'asc' ? -1 : 1;
+            if (valA > valB) return sortState.dir === 'asc' ? 1 : -1;
+            return 0;
+        });
+
+        tbody.append(...sortedRows);
+    }
+
+    window.onload = fetchAccounts;
+</script>
+</body>
+</html>

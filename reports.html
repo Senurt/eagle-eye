@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Eagle Eye | Reports</title>
+    
+    <!-- Tactical Branding Favicon -->
+    <link class="fav" rel="icon" type="image/png" href="favicon.png">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght=400;500;600;700;800;900&display=swap" rel="stylesheet">
+    
+    <!-- Supabase Core & Init Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-init.js"></script>
+
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --black: #0a0a0a; 
+            --orange: #F97316; 
+            --red: #DC2626;
+            --text-main: #ffffff; 
+            --text-dim: rgba(255, 255, 255, 0.5);
+            --grad: linear-gradient(90deg, #F97316 0%, #DC2626 100%);
+            --v-grad: linear-gradient(180deg, #F97316 0%, #DC2626 100%);
+            --border: rgba(255, 255, 255, 0.08);
+            --glass: rgba(12, 12, 12, 0.98);
+        }
+
+        body { 
+            height: 100vh; 
+            font-family: 'Inter', sans-serif; 
+            background: var(--black); 
+            color: var(--text-main); 
+            display: flex; 
+            flex-direction: column; 
+            overflow: hidden; 
+        }
+
+        /* ── CUSTOM SCROLLBARS ────────────────────────────────────── */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #111; border-left: 1px solid var(--border); }
+        ::-webkit-scrollbar-thumb { background: linear-gradient(180deg, var(--orange) 0%, var(--red) 100%); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { filter: brightness(1.2); }
+        * { scrollbar-width: thin; scrollbar-color: #F97316 #111; }
+
+        /* --- NAVIGATION --- */
+        nav { 
+            display: flex; align-items: center; justify-content: space-between; 
+            padding: 0 44px; height: 80px; border-bottom: 1px solid var(--border); 
+            background: var(--black); z-index: 1000; flex-shrink: 0; 
+        }
+        .nav-logo { display: flex; align-items: center; gap: 14px; text-decoration: none; transition: opacity 0.2s; }
+        .nav-logo:hover { opacity: 0.8; }
+        
+        .brand-logo {
+            height: 50px;
+            width: auto;
+            object-fit: contain;
+            filter: invert(1) contrast(200%);
+            mix-blend-mode: screen;
+        }
+
+        .nav-right { display: flex; align-items: center; gap: 32px; height: 100%; }
+        .nav-links { display: flex; gap: 32px; height: 100%; align-items: center; }
+        .nav-links a { 
+            position: relative; font-weight: 700; font-size: 0.85rem; color: var(--text-dim); 
+            text-decoration: none; text-transform: uppercase; letter-spacing: 0.05em;
+            height: 100%; display: flex; align-items: center; transition: all .2s ease;
+        }
+        .nav-links a:hover, .nav-links a.active { color: #fff; }
+        .nav-links a.active::after { 
+            content: ''; position: absolute; bottom: 0; left: 0; right: 0; 
+            height: 2px; background: var(--grad); box-shadow: 0 0 10px rgba(249, 115, 22, 0.5);
+        }
+
+        .nav-user { position: relative; z-index: 9999; display: flex; align-items: center; }
+        .dots-btn { background: transparent; border: none; color: var(--text-dim); cursor: pointer; padding: 10px; border-radius: 10px; transition: all 0.2s; }
+        .dots-btn:hover { background: rgba(255, 255, 255, 0.05); color: #fff; }
+        
+        .dropdown-menu { 
+            position: absolute; top: calc(100% + 10px); right: 0; width: 180px; 
+            background: #121212; border: 1px solid var(--border); border-radius: 16px; 
+            padding: 8px; display: none; flex-direction: column; 
+            box-shadow: 0 20px 50px rgba(0,0,0,0.6); backdrop-filter: blur(10px); 
+        }
+        .dropdown-menu.show { display: flex; }
+        .dropdown-menu a { 
+            padding: 12px 16px; text-decoration: none; color: var(--text-dim); 
+            font-size: 0.85rem; font-weight: 600; border-radius: 8px; transition: all 0.2s; 
+        }
+        .dropdown-menu a:hover { background: rgba(255, 255, 255, 0.05); color: #fff; }
+        .dropdown-divider { border: 0; border-top: 1px solid var(--border); margin: 8px 0; }
+        .logout-link { color: var(--red) !important; }
+
+        /* --- CONTENT --- */
+        .dashboard-layout { flex: 1; display: flex; flex-direction: column; padding: 10px; min-height: 0; }
+        .hero-style-frame {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            gap: 20px;
+            padding: 24px 44px;
+        }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; }
+        .stat-card { background: var(--glass); border: 1px solid var(--border); border-radius: 12px; padding: 20px; backdrop-filter: blur(10px); transition: transform 0.2s ease;}
+        .stat-card:hover { transform: translateY(-2px); border-color: rgba(255,255,255,0.15); }
+        .s-label { font-size: 0.6rem; font-weight: 900; color: var(--text-dim); text-transform: uppercase; margin-bottom: 6px; display: block; letter-spacing: 0.05em;}
+        .s-value { font-size: 1.8rem; font-weight: 900; display: block; }
+        .s-sub { font-size: 0.7rem; font-weight: 700; color: var(--orange); margin-top: 6px; display: block; }
+
+        .main-content { display: flex; gap: 24px; flex: 1; min-height: 0; }
+        .left-col { flex: 2; display: flex; flex-direction: column; min-width: 0; }
+        .right-col { flex: 0 0 360px; display: flex; flex-direction: column; gap: 24px; } 
+
+        .table-section { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+        .table-top { display: flex; gap: 12px; margin-bottom: 12px; }
+        .search-bar { background: #111; border: 1px solid var(--border); border-radius: 8px; padding: 12px 18px; color: #fff; flex: 1; outline: none; font-size: 0.9rem;}
+        .export-btn { background: var(--grad); color: #fff; font-weight: 900; padding: 0 20px; border-radius: 8px; cursor: pointer; border: none; text-transform: uppercase; font-size: 0.8rem; letter-spacing: 0.5px; transition: all 0.2s;}
+        .export-btn:hover { filter: brightness(1.2); box-shadow: 0 0 15px rgba(249, 115, 22, 0.6); }
+
+        .table-container { flex: 1; overflow: auto; border: 1px solid var(--border); border-radius: 12px; background: rgba(0,0,0,0.5); }
+        table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        
+        /* Interactive Sorting Headers Styles */
+        thead th { 
+            position: sticky; 
+            top: 0; 
+            z-index: 10; 
+            background: #151515; 
+            padding: 16px; 
+            text-align: left; 
+            color: var(--text-dim); 
+            font-weight: 900; 
+            border-bottom: 2px solid var(--border); 
+            cursor: pointer; 
+            text-transform: uppercase; 
+            white-space: nowrap;
+            transition: all 0.2s ease;
+            user-select: none;
+        }
+        thead th:hover {
+            color: #ffffff;
+            background: #1c1c1c;
+            border-bottom-color: var(--orange);
+        }
+        thead th.sorted-active {
+            color: #ffffff;
+            background: #1c1c1c;
+            border-bottom-color: var(--orange);
+        }
+        .sort-indicator {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-left: 6px;
+            vertical-align: middle;
+            transition: transform 0.2s ease, color 0.2s ease;
+            color: rgba(255, 255, 255, 0.3);
+        }
+        thead th:hover .sort-indicator, thead th.sorted-active .sort-indicator {
+            color: var(--orange);
+        }
+
+        tbody td { padding: 16px; border-bottom: 1px solid var(--border); color: #ccc; white-space: nowrap; }
+        tbody tr { transition: background 0.2s ease; }
+        tbody tr:hover { background: rgba(255, 255, 255, 0.05); }
+        .ref-no { font-family: monospace; font-weight: 700; color: #fff; }
+
+        .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin: 15px 0; }
+        .cal-date { aspect-ratio: 1; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 600; border-radius: 4px; background: rgba(255,255,255,0.02); color: var(--text-dim);}
+        .freq-high { background: var(--grad); color: #fff; font-weight: 900; box-shadow: 0 2px 10px rgba(249, 115, 22, 0.3);}
+        .freq-med { background: rgba(249,115,22,0.3); color: #fff;}
+
+        .trend-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; border-top: 1px solid var(--border); padding-top: 15px; }
+        .trend-box { background: rgba(255,255,255,0.03); padding: 10px 4px; border-radius: 6px; text-align: center; }
+        .trend-val { font-weight: 900; font-size: 1rem; color: #fff; }
+        .trend-lbl { font-size: 0.65rem; color: var(--text-dim); text-transform: uppercase; margin-top: 4px; font-weight: 600;}
+
+        .outcome-content { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 24px; flex: 1; padding: 15px 0; }
+        .outcome-svg { width: 90px; height: auto; flex-shrink: 0; transition: all 0.5s ease-out; }
+        .outcome-svg circle:nth-child(2) { transition: stroke-dasharray 1s ease-out; }
+        
+        .leg-group { display: flex; flex-direction: column; gap: 10px; }
+        .leg-item { display: flex; align-items: center; gap: 8px; font-size: 0.65rem; font-weight: 800; color: var(--text-dim); text-transform: uppercase;}
+        .dot { width: 8px; height: 8px; border-radius: 2px; }
+
+        .badge { padding: 6px 10px; border-radius: 6px; font-size: 0.65rem; font-weight: 900; text-transform: uppercase; letter-spacing: 0.5px;}
+        .bg-success { background: rgba(21, 128, 61, 0.15); color: #4ADE80; border: 1px solid #15803d; }
+        .bg-aborted { background: rgba(185, 28, 28, 0.15); color: #f87171; border: 1px solid #b91c1c; }
+        .bg-partial { background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid #d97706; }
+
+        .loading-state {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-dim);
+            font-style: italic;
+        }
+
+        @media (max-width: 1024px) {
+            .hero-style-frame { padding: 16px; gap: 16px; }
+            .stats-grid { grid-template-columns: 1fr 1fr; }
+            .main-content { flex-direction: column; overflow: visible; }
+            .right-col { flex: none; width: 100%; flex-direction: column; } 
+            .table-container { min-height: 400px; } 
+            body { overflow-y: auto; }
+            .dashboard-layout { overflow-y: visible; min-height: auto; }
+            nav { padding: 0 20px; }
+        }
+        
+        @media (max-width: 600px) {
+            .stats-grid { grid-template-columns: 1fr; }
+            .table-top { flex-direction: column; }
+            .export-btn { padding: 12px; }
+        }
+    </style>
+</head>
+<body>
+
+<nav>
+    <a href="home.html" id="logoLink" class="nav-logo">
+        <img src="logo.png" alt="Eagle Eye Logo" class="brand-logo" onerror="this.src='https://img.icons8.com/ios-filled/100/ffffff/eagle.png'">
+    </a>
+
+    <div class="nav-right">
+        <!-- Dynamic Navigation Container -->
+        <div class="nav-links" id="dynamicNavLinks"></div>
+
+        <div class="nav-user">
+            <button class="dots-btn" id="menuBtn">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="1"></circle>
+                    <circle cx="12" cy="5" r="1"></circle>
+                    <circle cx="12" cy="19" r="1"></circle>
+                </svg>
+            </button>
+            <div class="dropdown-menu" id="dropdownMenu"></div>
+        </div>
+    </div>
+</nav>
+
+<main class="dashboard-layout">
+    <div class="hero-style-frame">
+        <div class="stats-grid">
+            <div class="stat-card">
+                <span class="s-label">Total Missions</span>
+                <span class="s-value" id="stat-missions">0</span>
+                <span class="s-sub" id="stat-missions-sub">Initializing...</span>
+            </div>
+            <div class="stat-card">
+                <span class="s-label">Survivors</span>
+                <span class="s-value" id="stat-survivors" style="color:var(--orange);">0</span>
+                <span class="s-sub" id="stat-survivors-sub">Analyzing...</span>
+            </div>
+            <div class="stat-card">
+                <span class="s-label">Recorded Operations</span>
+                <span class="s-value" id="stat-logs">0</span>
+                <span class="s-sub" id="stat-logs-sub">Total Incident Logs</span>
+            </div>
+            <div class="stat-card">
+                <span class="s-label">Efficiency</span>
+                <span class="s-value" id="stat-efficiency">0%</span>
+                <span class="s-sub" style="color:var(--red);">Target 90%</span>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="left-col">
+                <div class="table-section">
+                    <div class="table-top">
+                        <input type="text" id="missionSearch" class="search-bar" placeholder="Filter reports by Survivor ID, Location, or Status...">
+                        <button class="export-btn" onclick="exportCSV()">Export CSV</button>
+                    </div>
+                    <div class="table-container">
+                        <table id="missionTable">
+                            <thead>
+                                <tr>
+                                    <th onclick="sortTable(0)">
+                                        Mission/Ref ID 
+                                        <span class="sort-indicator" id="indicator-0">
+                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M19 12l-7 7-7-7"/></svg>
+                                        </span>
+                                    </th>
+                                    <th onclick="sortTable(1)">
+                                        Timestamp 
+                                        <span class="sort-indicator" id="indicator-1">
+                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M19 12l-7 7-7-7"/></svg>
+                                        </span>
+                                    </th>
+                                    <th onclick="sortTable(2)">
+                                        Location/Event 
+                                        <span class="sort-indicator" id="indicator-2">
+                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M19 12l-7 7-7-7"/></svg>
+                                        </span>
+                                    </th>
+                                    <th onclick="sortTable(3)">
+                                        Saved 
+                                        <span class="sort-indicator" id="indicator-3">
+                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M19 12l-7 7-7-7"/></svg>
+                                        </span>
+                                    </th>
+                                    <th onclick="sortTable(4)">
+                                        Status 
+                                        <span class="sort-indicator" id="indicator-4">
+                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M19 12l-7 7-7-7"/></svg>
+                                        </span>
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody id="missionData">
+                                <tr><td colspan="5" class="loading-state">Connecting to Tactical Network...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="right-col">
+                <div class="stat-card">
+                    <div class="s-label" id="calendar-label">Frequency Map (Current Month)</div>
+                    <div class="cal-grid" id="calendar"></div>
+                    <div class="trend-grid">
+                        <div class="trend-box"><div class="trend-val" id="trend-daily">--%</div><div class="trend-lbl">Daily</div></div>
+                        <div class="trend-box"><div class="trend-val" id="trend-monthly">--%</div><div class="trend-lbl">Month</div></div>
+                        <div class="trend-box"><div class="trend-val" id="trend-yearly">--%</div><div class="trend-lbl">Year</div></div>
+                    </div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="s-label">Outcome Logic</div>
+                    <div class="outcome-content">
+                        <svg class="outcome-svg" viewBox="0 0 130 130" id="outcomeChart">
+                            <circle cx="65" cy="65" r="50" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="22"/>
+                            <!-- Default stroke-dasharray is zeroed out until data loads -->
+                            <circle cx="65" cy="65" r="50" fill="none" stroke="url(#g)" stroke-width="22" stroke-dasharray="0 314" transform="rotate(-90 65 65)"/>
+                            <defs><linearGradient id="g"><stop offset="0%" stop-color="#F97316"/><stop offset="100%" stop-color="#DC2626"/></linearGradient></defs>
+                            <text x="65" y="75" text-anchor="middle" font-weight="900" font-size="24" fill="#fff" id="outcomeText">--%</text>
+                        </svg>
+                        <div class="leg-group">
+                            <div class="leg-item"><div class="dot" style="background:var(--orange)"></div> SUCCESSFUL</div>
+                            <div class="leg-item"><div class="dot" style="background:#fbbf24"></div> PARTIAL</div>
+                            <div class="leg-item"><div class="dot" style="background:#f87171"></div> ABORTED</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<script>
+    // Global tracking variables for robust sorting
+    let sortDirection = {}; // { columnIndex: 'asc' | 'desc' }
+    let lastSortedColumn = -1;
+
+    document.addEventListener('DOMContentLoaded', () => {
+        setupNavigation();
+        setupSearch();
+        
+        // Initiate connection to Supabase and pull data
+        fetchSupabaseData();
+    });
+
+    function setupNavigation() {
+        const rawRole = localStorage.getItem('userRole') || 'user';
+        const userRole = rawRole.replace(/['"]/g, '').toLowerCase().trim();
+        
+        const navLinksContainer = document.getElementById('dynamicNavLinks');
+        const dropdownMenu = document.getElementById('dropdownMenu');
+        const logoLink = document.getElementById('logoLink');
+
+        if (userRole === 'admin') {
+            if (logoLink) logoLink.href = "admin.html";
+            if (navLinksContainer) {
+                navLinksContainer.innerHTML = `
+                    <a href="admin.html">Admin Dashboard</a>
+                    <a href="reports.html" class="active">Reports</a>
+                    <a href="audit.html">Audit Logs</a>
+                `;
+            }
+        } else {
+            if (logoLink) logoLink.href = "home.html";
+            if (navLinksContainer) {
+                navLinksContainer.innerHTML = `
+                    <a href="home.html">Home</a>
+                    <a href="dashboard.html">Dashboard</a>
+                    <a href="mission.html">Mission</a>
+                    <a href="reports.html" class="active">Reports</a>
+                `;
+            }
+        }
+
+        if (dropdownMenu) {
+            dropdownMenu.innerHTML = `
+                <a href="profile.html">Account Profile</a>
+                <hr class="dropdown-divider">
+                <a href="index.html" class="logout-link" onclick="localStorage.removeItem('userRole')">End Session</a>
+            `;
+        }
+
+        const menuBtn = document.getElementById('menuBtn');
+        if (menuBtn && dropdownMenu) {
+            menuBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                dropdownMenu.classList.toggle('show');
+            });
+            document.addEventListener('click', () => dropdownMenu.classList.remove('show'));
+        }
+    }
+
+    // --- SUPABASE DATA FETCHING ---
+    async function fetchSupabaseData() {
+        const supabase = window.supabaseClient || window.supabase;
+
+        if (!supabase) {
+            console.warn("Supabase client not found globally. Falling back to offline tactical database search.");
+            loadLocalStaticFallback();
+            return;
+        }
+
+        try {
+            // Fetch parallel from missions, incident_logs, and detection_state
+            const [missionsRes, logsRes, stateRes] = await Promise.all([
+                supabase.from('missions').select('*').order('created_at', { ascending: false }),
+                supabase.from('incident_logs').select('*'),
+                supabase.from('detection_state').select('*')
+            ]);
+
+            if (missionsRes.error) throw missionsRes.error;
+            if (logsRes.error) throw logsRes.error;
+            if (stateRes.error) throw stateRes.error;
+
+            const missionsData = missionsRes.data || [];
+            const logsData = logsRes.data || [];
+            const stateData = stateRes.data || [];
+
+            updateDashboardStats(missionsData, logsData, stateData);
+            updateCalendarAndTrends(missionsData, logsData);
+            populateTable(missionsData);
+
+        } catch (error) {
+            console.error("Error fetching data from Supabase:", error);
+            document.getElementById('missionData').innerHTML = `<tr><td colspan="5" class="loading-state" style="color:var(--red);">Error connecting to database. Searching offline cache...</td></tr>`;
+            setTimeout(loadLocalStaticFallback, 1500);
+        }
+    }
+
+    // --- UI UPDATING LOGIC ---
+    function updateDashboardStats(missions, logs, states) {
+        // 1. Total Missions Calculation
+        const totalMissions = missions.length;
+        document.getElementById('stat-missions').innerText = totalMissions;
+        document.getElementById('stat-missions-sub').innerText = `Active DB Sync`;
+
+        // 2. Total Survivors (Sum of 'saved' property + utilizing detection_state)
+        let totalSurvivors = 0;
+        missions.forEach(m => {
+            totalSurvivors += parseInt(m.saved || m.saved_count || m.survivors || 0);
+        });
+        document.getElementById('stat-survivors').innerText = totalSurvivors;
+        
+        // Use detection_state to show active scans
+        document.getElementById('stat-survivors-sub').innerText = states.length > 0 ? `${states.length} Active Detections` : `Validated Rescues`;
+
+        // 3. Logs / Operations calculation pulling directly from incident_logs
+        const totalLogs = logs.length;
+        document.getElementById('stat-logs').innerText = totalLogs;
+        
+        // 4. Efficiency Logic
+        const successfulMissions = missions.filter(m => {
+            const status = (m.status || m.decision || '').toLowerCase();
+            return status === 'rescue' || status === 'success' || status === 'completed';
+        }).length;
+        
+        const efficiency = totalMissions > 0 ? Math.round((successfulMissions / totalMissions) * 100) : 0;
+        document.getElementById('stat-efficiency').innerText = `${efficiency}%`;
+
+        // 5. Update Outcome SVG Circle
+        updateOutcomeChart(efficiency);
+    }
+
+    function updateCalendarAndTrends(missions, logs) {
+        const now = new Date();
+        const currentMonth = now.getMonth();
+        const currentYear = now.getFullYear();
+
+        // Update Label
+        const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+        document.getElementById('calendar-label').innerText = `Frequency Map (${monthNames[currentMonth]} ${currentYear})`;
+
+        // --- TRENDS (Efficiency by Timeframe) ---
+        let dailyTotal = 0, dailySuccess = 0;
+        let monthlyTotal = 0, monthlySuccess = 0;
+        let yearlyTotal = 0, yearlySuccess = 0;
+
+        missions.forEach(m => {
+            if(!m.created_at) return;
+            const mDate = new Date(m.created_at);
+            const isSuccess = ['rescue', 'success', 'completed'].includes((m.status || m.decision || '').toLowerCase());
+            
+            if (mDate.getFullYear() === currentYear) {
+                yearlyTotal++;
+                if (isSuccess) yearlySuccess++;
+                
+                if (mDate.getMonth() === currentMonth) {
+                    monthlyTotal++;
+                    if (isSuccess) monthlySuccess++;
+                    
+                    if (mDate.getDate() === now.getDate()) {
+                        dailyTotal++;
+                        if (isSuccess) dailySuccess++;
+                    }
+                }
+            }
+        });
+
+        const dailyRate = dailyTotal > 0 ? Math.round((dailySuccess / dailyTotal) * 100) : 0;
+        const monthlyRate = monthlyTotal > 0 ? Math.round((monthlySuccess / monthlyTotal) * 100) : 0;
+        const yearlyRate = yearlyTotal > 0 ? Math.round((yearlySuccess / yearlyTotal) * 100) : 0;
+
+        document.getElementById('trend-daily').innerText = dailyTotal > 0 ? `${dailyRate}%` : '--%';
+        document.getElementById('trend-monthly').innerText = monthlyTotal > 0 ? `${monthlyRate}%` : '--%';
+        document.getElementById('trend-yearly').innerText = yearlyTotal > 0 ? `${yearlyRate}%` : '--%';
+
+        // --- CALENDAR FREQUENCY MAP ---
+        const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+        const calWrap = document.getElementById('calendar');
+        calWrap.innerHTML = ''; // clear loading state
+
+        // Count combined activity per day (Missions + Incident Logs)
+        const dayCounts = {};
+        const combinedEvents = [...missions, ...logs];
+        
+        combinedEvents.forEach(item => {
+            const timestamp = item.created_at || item.timestamp;
+            if (!timestamp) return;
+            
+            const d = new Date(timestamp);
+            if (d.getMonth() === currentMonth && d.getFullYear() === currentYear) {
+                const day = d.getDate();
+                dayCounts[day] = (dayCounts[day] || 0) + 1;
+            }
+        });
+
+        // Generate Calendar Grid
+        for (let i = 1; i <= daysInMonth; i++) {
+            const dateDiv = document.createElement('div');
+            dateDiv.className = 'cal-date';
+            dateDiv.innerText = i;
+            
+            const count = dayCounts[i] || 0;
+            if (count >= 3) {
+                dateDiv.classList.add('freq-high');
+            } else if (count > 0) {
+                dateDiv.classList.add('freq-med');
+            }
+            
+            calWrap.appendChild(dateDiv);
+        }
+    }
+
+    function updateOutcomeChart(efficiencyPercentage) {
+        const circle = document.querySelector('#outcomeChart circle:nth-child(2)');
+        const text = document.getElementById('outcomeText');
+        
+        // Circle Circumference: C = 2 * Math.PI * r (where r is 50) = 314.159
+        const circumference = 314.16;
+        const dash = (efficiencyPercentage / 100) * circumference;
+        const gap = circumference - dash;
+
+        if (circle) circle.setAttribute('stroke-dasharray', `${dash} ${gap}`);
+        if (text) text.textContent = `${efficiencyPercentage}%`;
+    }
+
+    function populateTable(missions) {
+        const tbody = document.getElementById('missionData');
+        tbody.innerHTML = ''; // Clear loading state
+
+        if (missions.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="5" class="loading-state">No missions logged in the database.</td></tr>`;
+            return;
+        }
+
+        missions.forEach(mission => {
+            const dateStr = mission.created_at ? new Date(mission.created_at).toISOString().split('T')[0] : 'N/A';
+            const statusRaw = (mission.status || mission.decision || 'unknown').toLowerCase();
+            
+            let badgeClass = 'bg-partial'; // fallback
+            let isRescue = false;
+            
+            if (['rescue', 'success', 'completed'].includes(statusRaw)) {
+                badgeClass = 'bg-success';
+                isRescue = true;
+            } else if (['abort', 'failed', 'aborted'].includes(statusRaw)) {
+                badgeClass = 'bg-aborted';
+            }
+
+            const refId = mission.mission_id || mission.id || mission.survivor_id || `REF-${Math.floor(Math.random()*10000)}`;
+            const loc = mission.location || mission.event || 'Classified Coordinates';
+            const savedCount = mission.saved || mission.saved_count || mission.survivors || (isRescue ? 1 : 0);
+
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td class="ref-no">${refId}</td>
+                <td>${dateStr}</td>
+                <td>${loc}</td>
+                <td>${savedCount}</td>
+                <td><span class="badge ${badgeClass}">${statusRaw.toUpperCase()}</span></td>
+            `;
+            tbody.appendChild(tr);
+        });
+
+        // Trigger visual reset on sort states when table is repopulated
+        resetSortStates();
+    }
+
+    function loadLocalStaticFallback() {
+        // Retrieve local storage logs if any real ones exist
+        const savedReports = JSON.parse(localStorage.getItem('missionReports')) || [];
+        
+        if (savedReports.length === 0) {
+            // Clean empty state instead of inventing mock records
+            document.getElementById('missionData').innerHTML = `
+                <tr><td colspan="5" class="loading-state">No local mission records found in offline memory.</td></tr>
+            `;
+            document.getElementById('stat-missions').innerText = '0';
+            document.getElementById('stat-missions-sub').innerText = 'Offline Mode (Empty)';
+            document.getElementById('stat-survivors').innerText = '0';
+            document.getElementById('stat-survivors-sub').innerText = '0 validated rescues';
+            document.getElementById('stat-logs').innerText = '0';
+            document.getElementById('stat-logs-sub').innerText = 'No incident events';
+            document.getElementById('stat-efficiency').innerText = '0%';
+            updateCalendarAndTrends([], []);
+            updateOutcomeChart(0);
+            return;
+        }
+
+        const mappedReports = savedReports.map(rep => ({
+            mission_id: rep.missionId || rep.id,
+            created_at: rep.timestamp || rep.created_at,
+            location: rep.event || rep.location,
+            status: rep.decision || rep.status,
+            saved: rep.saved !== undefined ? rep.saved : (rep.decision?.toLowerCase() === 'rescue' ? 1 : 0)
+        }));
+
+        populateTable(mappedReports);
+        updateDashboardStats(mappedReports, [], []);
+        updateCalendarAndTrends(mappedReports, []);
+    }
+
+    // --- UTILITIES ---
+    function setupSearch() {
+        const searchInput = document.getElementById('missionSearch');
+        if (searchInput) {
+            searchInput.addEventListener('input', function() {
+                const val = this.value.toLowerCase();
+                document.querySelectorAll("#missionData tr").forEach(row => {
+                    // Skip filtering on loading/empty states
+                    if(row.querySelector('.loading-state')) return;
+                    row.style.display = row.innerText.toLowerCase().includes(val) ? "" : "none";
+                });
+            });
+        }
+    }
+
+    /* ── HIGHLY FUNCTIONAL TABLE SORTING SYSTEM ────────────────── */
+    function resetSortStates() {
+        sortDirection = {};
+        lastSortedColumn = -1;
+        const headers = document.querySelectorAll("#missionTable thead th");
+        headers.forEach((th, idx) => {
+            th.classList.remove('sorted-active');
+            const indicator = document.getElementById(`indicator-${idx}`);
+            if (indicator) {
+                indicator.style.transform = 'none';
+                indicator.style.color = 'rgba(255, 255, 255, 0.3)';
+                indicator.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M19 12l-7 7-7-7"/></svg>`;
+            }
+        });
+    }
+
+    function sortTable(columnIndex) {
+        const table = document.getElementById("missionTable");
+        const tbody = document.getElementById("missionData");
+        const rows = Array.from(tbody.querySelectorAll("tr"));
+        const headers = table.querySelectorAll("thead th");
+
+        // Prevent sorting if currently displaying the network loading screen or empty state
+        if (rows.length === 0 || rows[0].querySelector('.loading-state')) return;
+
+        // Toggle sort order state
+        let currentDirection = sortDirection[columnIndex] || 'none';
+        let targetDirection = 'asc';
+
+        if (currentDirection === 'asc') {
+            targetDirection = 'desc';
+        } else if (currentDirection === 'desc') {
+            targetDirection = 'asc';
+        }
+
+        // Store new direction
+        sortDirection[columnIndex] = targetDirection;
+        lastSortedColumn = columnIndex;
+
+        // Execute dynamic typed comparison algorithm
+        rows.sort((a, b) => {
+            let cellA = a.children[columnIndex].innerText.trim();
+            let cellB = b.children[columnIndex].innerText.trim();
+
+            // Row types formatting handling
+            if (columnIndex === 3) { // Saved Column (Float/Int parsing)
+                const valA = parseFloat(cellA) || 0;
+                const valB = parseFloat(cellB) || 0;
+                return targetDirection === 'asc' ? valA - valB : valB - valA;
+            }
+
+            if (columnIndex === 1) { // Timestamp Column (Date parsing)
+                const dateA = new Date(cellA);
+                const dateB = new Date(cellB);
+                if (!isNaN(dateA) && !isNaN(dateB)) {
+                    return targetDirection === 'asc' ? dateA - dateB : dateB - dateA;
+                }
+            }
+
+            // Fallback for standard string comparisons (Mission IDs, Sectors, Badges)
+            return targetDirection === 'asc' 
+                ? cellA.localeCompare(cellB, undefined, { numeric: true, sensitivity: 'base' })
+                : cellB.localeCompare(cellA, undefined, { numeric: true, sensitivity: 'base' });
+        });
+
+        // Repopulate DOM structure instantly with minimal paint delay
+        rows.forEach(row => tbody.appendChild(row));
+
+        // Synchronize visual state classes and dynamic indicators
+        headers.forEach((th, idx) => {
+            const indicator = document.getElementById(`indicator-${idx}`);
+            if (idx === columnIndex) {
+                th.classList.add('sorted-active');
+                indicator.style.color = 'var(--orange)';
+                
+                // SVG updates based on active target direction
+                if (targetDirection === 'asc') {
+                    indicator.style.transform = 'rotate(180deg)';
+                    indicator.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>`;
+                } else {
+                    indicator.style.transform = 'none';
+                    indicator.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M19 12l-7 7-7-7"/></svg>`;
+                }
+            } else {
+                th.classList.remove('sorted-active');
+                if (indicator) {
+                    indicator.style.transform = 'none';
+                    indicator.style.color = 'rgba(255, 255, 255, 0.3)';
+                    indicator.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M19 12l-7 7-7-7"/></svg>`;
+                }
+                // Clear state for other columns to prevent lingering toggle configurations
+                sortDirection[idx] = 'none';
+            }
+        });
+    }
+
+    function exportCSV() {
+        let csv = "Mission/Ref ID,Timestamp,Location/Event,Saved,Status\n";
+        const rows = document.querySelectorAll("#missionData tr");
+        if (rows.length === 0 || rows[0].querySelector('.loading-state')) {
+            console.warn("No active database or offline records to export.");
+            return;
+        }
+        rows.forEach(tr => {
+            if(tr.style.display !== 'none') {
+                csv += Array.from(tr.children).map(td => `"${td.innerText.trim()}"`).join(",") + "\n";
+            }
+        });
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'eagle_eye_tactical_reports.csv'; a.click();
+    }
+</script>
+</body>
+</html>

@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Eagle Eye | Home</title>
+    
+    <!-- Tactical Branding Favicon -->
+    <link rel="icon" type="image/png" href="favicon.png">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --black: #0a0a0a;
+            --orange: #F97316;
+            --red: #DC2626;
+            --text-main: #ffffff;
+            --text-dim: rgba(255, 255, 255, 0.4);
+            --grad: linear-gradient(90deg, #F97316 0%, #DC2626 100%);
+            --border: rgba(255, 255, 255, 0.08);
+            --card-bg: #0d0d0d;
+        }
+
+        body {
+            height: 100vh;
+            font-family: 'Inter', sans-serif;
+            background: var(--black);
+            color: var(--text-main);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* NAVIGATION DIRECTORY */
+        nav {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 44px;
+            height: 80px;
+            border-bottom: 1px solid var(--border);
+            background: var(--black);
+            z-index: 100;
+        }
+
+        .nav-logo { 
+            display: flex; 
+            align-items: center; 
+            gap: 14px; 
+            text-decoration: none; 
+            transition: opacity 0.2s;
+        }
+        .nav-logo:hover { opacity: 0.8; }
+
+        /* Tactical Logo Style */
+        .brand-logo {
+            height: 50px;
+            width: auto;
+            object-fit: contain;
+            filter: invert(1) contrast(200%);
+            mix-blend-mode: screen;
+        }
+
+        .nav-logo-wordmark { 
+            font-size: 1.5rem; 
+            font-weight: 900; 
+            color: #fff; 
+            letter-spacing: -0.02em; 
+            text-transform: uppercase;
+        }
+
+        .nav-right { display: flex; align-items: center; gap: 32px; height: 100%; }
+
+        .nav-links { 
+            display: flex; 
+            gap: 32px; 
+            height: 100%; 
+            align-items: center; 
+        }
+        
+        .nav-links a {
+            position: relative;
+            font-weight: 700; 
+            font-size: 0.85rem;
+            color: var(--text-dim); 
+            text-decoration: none;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            height: 100%; 
+            display: flex;
+            align-items: center;
+            transition: all .2s ease;
+        }
+
+        .nav-links a:hover, .nav-links a.active { color: #fff; }
+
+        .nav-links a.active::after {
+            content: ''; 
+            position: absolute;
+            bottom: 0; 
+            left: 0; 
+            right: 0;
+            height: 2px; 
+            background: var(--grad);
+            box-shadow: 0 0 10px rgba(249, 115, 22, 0.5);
+        }
+
+        /* HERO SECTION */
+        .hero {
+            flex: 1; position: relative;
+            margin: 16px; border-radius: 32px;
+            overflow: hidden; border: 1px solid var(--border);
+        }
+
+        .hero-bg {
+            position: absolute; inset: 0;
+            background: url('https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2072&auto=format&fit=crop') center/cover no-repeat;
+            animation: slowZoom 40s ease-in-out infinite alternate;
+            opacity: 0.6;
+        }
+
+        @keyframes slowZoom { from { transform: scale(1); } to { transform: scale(1.15); } }
+
+        .hero-overlay {
+            position: absolute; inset: 0;
+            background: radial-gradient(circle at center, transparent 0%, rgba(10,10,10,0.95) 100%);
+        }
+
+        .hero-content {
+            position: absolute; inset: 0; z-index: 2;
+            display: flex; flex-direction: column;
+            justify-content: center; 
+            padding: 0 80px;
+            max-width: 1200px;
+        }
+
+        .hero-content h1 {
+            font-size: clamp(2.5rem, 6vw, 4.5rem);
+            font-weight: 900;
+            line-height: 1.1;
+            letter-spacing: -0.03em;
+        }
+
+        .white-text { color: #fff; }
+        .grad-text {
+            background: var(--grad);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .hero-tagline {
+            font-size: 1.1rem;
+            color: var(--text-dim);
+            max-width: 500px;
+            line-height: 1.6;
+            margin: 24px 0 40px 0;
+        }
+
+        /* ACTIONS */
+        .hero-actions { display: flex; gap: 16px; }
+
+        .btn-primary {
+            padding: 18px 40px; border-radius: 14px;
+            background: var(--grad); color: #fff;
+            font-weight: 800; text-decoration: none;
+            text-transform: uppercase; letter-spacing: 0.05em;
+            box-shadow: 0 10px 30px rgba(249, 115, 22, 0.2);
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .btn-primary:hover { transform: translateY(-3px); filter: brightness(1.1); box-shadow: 0 15px 35px rgba(249, 115, 22, 0.3); }
+
+        .btn-ghost {
+            padding: 18px 40px; border-radius: 14px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border);
+            color: #fff; font-weight: 700; text-decoration: none;
+            text-transform: uppercase; letter-spacing: 0.05em;
+            transition: all 0.2s;
+        }
+
+        .btn-ghost:hover { background: rgba(255, 255, 255, 0.08); border-color: rgba(255,255,255,0.2); }
+
+        /* DROPDOWN MENU */
+        .nav-user { position: relative; display: flex; align-items: center; }
+        .dots-btn {
+            background: transparent; border: none; color: var(--text-dim);
+            cursor: pointer; padding: 10px; border-radius: 10px;
+            transition: all 0.2s;
+        }
+        .dots-btn:hover { background: rgba(255, 255, 255, 0.05); color: #fff; }
+
+        .dropdown-menu {
+            position: absolute; top: calc(100% + 10px); right: 0;
+            width: 180px; background: #121212; border: 1px solid var(--border);
+            border-radius: 16px; padding: 8px; display: none;
+            flex-direction: column; box-shadow: 0 20px 50px rgba(0,0,0,0.6);
+            backdrop-filter: blur(10px);
+        }
+
+        .dropdown-menu.show { display: flex; animation: dropIn 0.2s ease-out; }
+        @keyframes dropIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+
+        .dropdown-menu a {
+            padding: 12px 16px; text-decoration: none; color: var(--text-dim);
+            font-size: 0.85rem; font-weight: 600; border-radius: 8px;
+            transition: all 0.2s;
+        }
+        .dropdown-menu a:hover { background: rgba(255, 255, 255, 0.05); color: #fff; }
+        .dropdown-divider { border: 0; border-top: 1px solid var(--border); margin: 8px 0; }
+        .logout-link { color: var(--red) !important; }
+
+        @media (max-width: 1024px) {
+            .hero { margin: 10px; border-radius: 20px; }
+            .hero-content { padding: 0 40px; }
+            .nav-links { display: none; }
+            .nav-logo-wordmark { font-size: 1.2rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <nav>
+        <a href="home.html" class="nav-logo">
+            <img src="logo.png" alt="Eagle Eye Logo" class="brand-logo">
+        </a>
+
+        <div class="nav-right">
+            <div class="nav-links">
+                <a href="home.html" class="active">Home</a>
+                <a href="dashboard.html">Dashboard</a>
+                <a href="mission.html">Mission</a>
+                <a href="reports.html">Reports</a>
+            </div>
+
+            <div class="nav-user">
+                <button class="dots-btn" id="menuBtn">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="1"></circle>
+                        <circle cx="12" cy="5" r="1"></circle>
+                        <circle cx="12" cy="19" r="1"></circle>
+                    </svg>
+                </button>
+                <div class="dropdown-menu" id="dropdownMenu">
+                    <a href="profile.html">Account Profile</a>
+                    <hr class="dropdown-divider">
+                    <a href="index.html" class="logout-link" onclick="localStorage.removeItem('userRole')">End Session</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="hero">
+        <div class="hero-bg"></div>
+        <div class="hero-overlay"></div>
+
+        <div class="hero-content">
+            <h1 id="heroTitle">
+                <span class="white-text">Spot the unseen.</span><br>
+                <span class="grad-text">Save the stranded.</span>
+            </h1>
+            <p class="hero-tagline">Autonomous drone intelligence, thermal detection, and synchronized GPS command—all integrated into one tactical interface.</p>
+            <div class="hero-actions">
+                <a href="dashboard.html" class="btn-primary">Dashboard</a>
+                <a href="mission.html" class="btn-ghost">Mission</a>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // UI ANIMATIONS
+            const heroContent = document.querySelector('.hero-content');
+            heroContent.style.opacity = '0';
+            heroContent.style.transform = 'translateY(20px)';
+            heroContent.style.transition = 'all 1s cubic-bezier(0.2, 1, 0.3, 1)';
+
+            setTimeout(() => {
+                heroContent.style.opacity = '1';
+                heroContent.style.transform = 'translateY(0)';
+            }, 500);
+
+            // DROPDOWN LOGIC
+            const menuBtn = document.getElementById('menuBtn');
+            const dropdownMenu = document.getElementById('dropdownMenu');
+            
+            menuBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                dropdownMenu.classList.toggle('show');
+            });
+
+            document.addEventListener('click', () => {
+                dropdownMenu.classList.remove('show');
+            });
+
+            dropdownMenu.addEventListener('click', (e) => e.stopPropagation());
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login | Eagle Eye</title>
+    <!-- Tactical Branding Favicon -->
+    <link rel="icon" type="image/svg+xml" href="favicon.png">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        /* CSS remains identical to the previous professional version */
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --black: #0a0a0a;
+            --orange: #F97316;
+            --red: #DC2626;
+            --grad: linear-gradient(90deg, #F97316 0%, #DC2626 100%);
+            --input-bg: #1f1f1f;
+            --text-muted: #888;
+        }
+        * { scrollbar-width: thin; scrollbar-color: #F97316 #111; }
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #111; }
+        ::-webkit-scrollbar-thumb { background: var(--grad); border-radius: 10px; }
+        body { background: var(--black); display: flex; min-height: 100vh; font-family: 'Inter', sans-serif; color: white; letter-spacing: -0.01em; }
+        .left { flex: 1; position: sticky; top: 0; height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden; padding: 48px; }
+        .left-bg { position: absolute; inset: 0; background: url('https://images.unsplash.com/photo-1473968512647-3e447244af8f?auto=format&fit=crop&q=80') center/cover; opacity: 0.22; }
+        .left-overlay { position: absolute; inset: 0; background: radial-gradient(circle, transparent, var(--black) 90%); }
+        .left-content { position: relative; z-index: 2; text-align: center; padding: 40px; }
+        .brand-badge { display: inline-flex; align-items: center; gap: 10px; background: rgba(40, 20, 10, 0.6); border: 1px solid rgba(249, 115, 22, 0.4); border-radius: 999px; padding: 8px 22px; font-size: 0.85rem; font-weight: 800; color: var(--orange); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 25px; }
+        .badge-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--orange); box-shadow: 0 0 10px var(--orange); }
+        .brand-big { font-size: 3rem; font-weight: 900; line-height: 1.1; margin-bottom: 15px; color: white; }
+        .grad-text { background: var(--grad); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .left-tagline { color: rgba(255,255,255,0.4); max-width: 440px; font-size: 1rem; line-height: 1.6; margin: 0 auto; }
+        .right { width: 520px; min-width: 380px; background: #0a0a0a; display: flex; align-items: center; justify-content: center; padding: 32px 28px; border-left: 1px solid rgba(255,255,255,0.05); }
+        .card { background: transparent; padding: 48px 42px; width: 100%; max-width: 460px; }
+        .card-header { margin-bottom: 35px; }
+        .card-header h1 { font-weight: 900; font-size: 2.2rem; color: white; letter-spacing: -0.5px; margin-bottom: 8px; }
+        .sub { color: var(--text-muted); font-size: 1rem; font-weight: 500; }
+        .field { margin-bottom: 20px; }
+        label { display: block; font-weight: 800; font-size: 0.75rem; margin-bottom: 8px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.8px; }
+        input { width: 100%; padding: 16px 18px; border-radius: 12px; border: 1px solid transparent; background: var(--input-bg); color: white; font-size: 1rem; font-family: 'Inter', sans-serif; outline: none; transition: all 0.2s; }
+        input::placeholder { color: #666; font-weight: 500; }
+        input:focus { border-color: var(--orange); background: #262626; }
+        .forgot-link { color: var(--orange); text-decoration: none; font-size: 0.85rem; font-weight: 700; transition: color 0.2s; }
+        .forgot-link:hover { color: var(--red); }
+        .btn-signin { width: 100%; padding: 18px; border: none; border-radius: 12px; background: var(--grad); color: white; font-weight: 800; font-size: 1rem; text-transform: uppercase; letter-spacing: 0.5px; cursor: pointer; transition: 0.3s; }
+        .btn-signin:hover { transform: translateY(-2px); filter: brightness(1.1); box-shadow: 0 10px 20px rgba(249,115,22,0.25); }
+        .signup-row { text-align: center; margin-top: 30px; font-size: 0.95rem; color: var(--text-muted); }
+        .signup-row a { color: var(--orange); font-weight: 700; text-decoration: none; transition: color 0.2s; }
+        .signup-row a:hover { color: var(--red); }
+        .tos { margin-top: 30px; text-align: center; font-size: 0.75rem; color: #444; line-height: 1.6; }
+        .tos a { color: var(--text-muted); text-decoration: none; font-weight: 700; }
+        .tos a:hover { color: var(--orange); }
+        #messageBox { margin-bottom: 15px; font-size: 0.85rem; color: var(--red); font-weight: 600; text-align: center; }
+        #loadingOverlay { display: none; position: fixed; inset: 0; background: rgba(10, 10, 10, 0.9); z-index: 10000; flex-direction: column; justify-content: center; align-items: center; }
+        .spinner { width: 40px; height: 40px; border: 4px solid rgba(249, 115, 22, 0.1); border-left-color: var(--orange); border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .modal { display: none; position: fixed; z-index: 1000; inset: 0; background: rgba(0, 0, 0, 0.8); backdrop-filter: blur(4px); align-items: center; justify-content: center; padding: 20px; }
+        .modal-content { background: var(--input-bg); width: 100%; max-width: 550px; border-radius: 24px; padding: 40px; position: relative; box-shadow: 0 20px 50px rgba(0,0,0,0.5); display: flex; flex-direction: column; max-height: 90vh; border: 1px solid #333; }
+        .modal-text { margin: 20px 0; overflow-y: auto; padding-right: 15px; color: #ccc; line-height: 1.6; text-align: justify; }
+        .close-modal { position: absolute; top: 20px; right: 25px; font-size: 28px; color: #888; cursor: pointer; transition: 0.2s; }
+        @media (max-width: 1024px) { body { flex-direction: column !important; } .left { flex: none !important; width: 100% !important; height: 350px; position: relative !important; } .right { width: 100% !important; border-left: none !important; padding: 20px 15px 40px 15px !important; } .card { margin: 0 auto !important; padding: 20px 15px !important; } }
+    </style>
+</head>
+<body>
+
+    <div id="loadingOverlay">
+        <div class="spinner"></div>
+        <p style="margin-top: 15px; font-weight: 600; color: #888;">Verifying Credentials...</p>
+    </div>
+
+    <section class="left">
+        <div class="left-bg"></div>
+        <div class="left-overlay"></div>
+        <div class="left-content">
+            <div class="brand-badge"><span class="badge-dot"></span> SEARCH AND RESCUE</div>
+            <h1 class="brand-big">
+                <span class="white-text">Spot the unseen.</span><br>
+                <span class="grad-text">Save the stranded.</span>
+            </h1>
+            <p class="left-tagline">Advanced drone surveillance, thermal mapping, and live GPS tracking integrated into a single tactical mission.</p>
+        </div>
+    </section>
+
+    <section class="right">
+        <div class="card">
+            <header class="card-header">
+                <h1>Welcome Back</h1>
+                <p class="sub">Access the search and rescue command center</p>
+            </header>
+
+            <form id="loginForm">
+                <div class="field">
+                    <label for="username">Username</label>
+                    <input type="text" id="username" placeholder="Enter username" required>
+                </div>
+
+                <div class="field">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" placeholder="••••••••" required>
+                </div>
+
+                <div id="messageBox"></div>
+
+                <div style="text-align: right; margin-bottom: 25px;">
+                    <a href="forgot_password.html" class="forgot-link">Forgot password?</a>
+                </div>
+
+                <button type="submit" class="btn-signin">Log In</button>
+            </form>
+
+            <div class="signup-row">
+                Don't have an account? <a href="signup.html">Create Account</a>
+            </div>
+
+            <p class="tos">
+                By signing in, you agree to our <br>
+                <a href="javascript:void(0)" onclick="openModal('tos')">Terms and Conditions</a> 
+                and 
+                <a href="javascript:void(0)" onclick="openModal('pp')">Privacy Policy</a>.
+            </p>
+        </div>
+    </section>
+
+    <div id="legalModal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closeModal()">&times;</span>
+            <div id="modalBody" class="modal-text"></div>
+            <button class="btn-signin" onclick="closeModal()" style="margin-top: 15px;">Acknowledge</button>
+        </div>
+    </div>
+
+    <!-- Supabase SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-init.js"></script>
+
+    <script>
+        const loginForm = document.getElementById('loginForm');
+        const usernameInput = document.getElementById('username');
+        const passwordInput = document.getElementById('password');
+        const messageBox = document.getElementById('messageBox');
+        const loadingOverlay = document.getElementById('loadingOverlay');
+
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const userVal = usernameInput.value.trim();
+            const passVal = passwordInput.value;
+            
+            messageBox.innerText = "";
+            if (!window.supabase) { messageBox.innerText = "System error: Database link not active."; return; }
+
+            loadingOverlay.style.display = 'flex';
+
+            try {
+                const { data, error } = await window.supabase
+                    .from('accounts')
+                    .select('*')
+                    .eq('username', userVal)
+                    .eq('password', passVal)
+                    .single();
+
+                if (error || !data) {
+                    messageBox.innerText = "Invalid credentials. Authorization denied.";
+                    return;
+                }
+
+                // UPDATED: Default fallback role changed to user
+                localStorage.setItem('userRole', data.role || 'user');
+                localStorage.setItem('isLoggedIn', 'true');
+                localStorage.setItem('userName', `${data.first_name} ${data.last_name}`);
+                localStorage.setItem('userId', data.id);
+
+                if (data.role === 'admin') {
+                    window.location.href = 'admin.html';
+                } else {
+                    window.location.href = 'home.html';
+                }
+
+            } catch (err) {
+                console.error("Login Error:", err);
+                messageBox.innerText = "Connection error. Tactical link interrupted.";
+            } finally {
+                loadingOverlay.style.display = 'none';
+            }
+        });
+
+        const legalData = {
+            tos: `<h2>Terms and Conditions</h2>...`,
+            pp: `<h2>Privacy Policy</h2>...`
+        };
+
+        const modal = document.getElementById("legalModal");
+        const modalBody = document.getElementById("modalBody");
+        function openModal(type) { modalBody.innerHTML = legalData[type]; modal.style.display = "flex"; }
+        function closeModal() { modal.style.display = "none"; }
+        window.onclick = function(event) { if (event.target == modal) closeModal(); }
+    </script>
+</body>
+</html>

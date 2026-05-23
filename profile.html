@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Profile | Eagle Eye</title>
+    
+    <!-- Tactical Branding Favicon -->
+    <link rel="icon" type="image/png" href="favicon.png">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --black: #0a0a0a; --orange: #F97316; --red: #DC2626;
+            --text-main: #ffffff; --text-dim: rgba(255, 255, 255, 0.6);
+            --grad: linear-gradient(90deg, #F97316 0%, #DC2626 100%);
+            --border: rgba(255, 255, 255, 0.08);
+            --glass: rgba(18, 18, 18, 0.6);
+        }
+        body { min-height: 100vh; font-family: 'Inter', sans-serif; background: var(--black); color: var(--text-main); overflow-x: hidden; }
+        
+        /* ── CUSTOM SCROLLBARS ── */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #111; border-left: 1px solid var(--border); }
+        ::-webkit-scrollbar-thumb { background: linear-gradient(180deg, var(--orange) 0%, var(--red) 100%); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { filter: brightness(1.2); }
+        * { scrollbar-width: thin; scrollbar-color: #F97316 #111; }
+
+        /* ── NAVIGATION ── */
+        nav { 
+            display: flex; align-items: center; justify-content: space-between; 
+            padding: 0 44px; height: 80px; border-bottom: 1px solid var(--border); 
+            background: var(--black); z-index: 1000; position: relative;
+        }
+        .nav-logo { display: flex; align-items: center; gap: 14px; text-decoration: none; }
+        .brand-logo { height: 50px; filter: invert(1) contrast(200%); mix-blend-mode: screen; }
+
+        .nav-right { display: flex; align-items: center; gap: 32px; height: 100%; }
+        
+        .nav-user { position: relative; z-index: 9999; display: flex; align-items: center; }
+        .dots-btn { background: transparent; border: none; color: var(--text-dim); cursor: pointer; padding: 10px; border-radius: 10px; transition: all 0.2s; }
+        
+        .dropdown-menu { 
+            position: absolute; top: calc(100% + 10px); right: 0; width: 180px; 
+            background: #121212; border: 1px solid var(--border); border-radius: 16px; 
+            padding: 8px; display: none; flex-direction: column; 
+            box-shadow: 0 20px 50px rgba(0,0,0,0.6); backdrop-filter: blur(10px); 
+        }
+        .dropdown-menu.show { display: flex; }
+        .dropdown-menu a { padding: 12px 16px; text-decoration: none; color: var(--text-dim); font-size: 0.85rem; font-weight: 600; border-radius: 8px; transition: all 0.2s; }
+        .dropdown-menu a:hover { background: rgba(255, 255, 255, 0.05); color: #fff; }
+        .logout-link { color: var(--red) !important; }
+
+        .back-nav { position: absolute; top: 120px; left: 40px; z-index: 10; }
+        .btn-back { 
+            background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border); 
+            color: #fff; padding: 12px 28px; border-radius: 50px; 
+            text-decoration: none; font-weight: 800; font-size: 0.8rem; 
+            letter-spacing: 1px; transition: all 0.3s ease; backdrop-filter: blur(10px); 
+            display: inline-flex; align-items: center;
+        }
+        .btn-back:hover { background: var(--grad); transform: translateX(-5px); }
+
+        .hero { min-height: calc(100vh - 80px); position: relative; padding: 120px 40px 60px; overflow-y: auto; }
+        .hero-bg { position: fixed; inset: 0; background: url('https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2072&auto=format&fit=crop') center/cover no-repeat; z-index: -1; filter: brightness(0.25); }
+        
+        .profile-card { max-width: 800px; margin: 0 auto; z-index: 2; position: relative; }
+        
+        .profile-header { display: flex; align-items: center; gap: 40px; margin-bottom: 40px; flex-wrap: wrap;}
+        
+        /* ── CIRCULAR CONTAINER ── */
+        .profile-circle {
+            width: 140px; height: 140px; border-radius: 50%;
+            border: 2px solid var(--orange); position: relative; overflow: hidden; cursor: pointer;
+            box-shadow: 0 0 30px rgba(249, 115, 22, 0.2); flex-shrink: 0; background: #111;
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+        .profile-circle:not(.camera-active):hover::after { 
+            content: 'UPLOAD'; position: absolute; inset: 0; background: rgba(0,0,0,0.7); 
+            display: flex; align-items: center; justify-content: center; 
+            font-weight: 800; font-size: 0.8rem; color: #fff; z-index: 3;
+        }
+        
+        /* Live feed active overlay animation effects */
+        .profile-circle.camera-active {
+            border-color: var(--red);
+            box-shadow: 0 0 30px rgba(220, 38, 38, 0.5);
+            animation: pulse-border 1.5s infinite alternate;
+        }
+        @keyframes pulse-border {
+            from { border-color: var(--orange); box-shadow: 0 0 15px rgba(249, 115, 22, 0.5); }
+            to { border-color: var(--red); box-shadow: 0 0 30px rgba(220, 38, 38, 0.9); }
+        }
+
+        #profilePic { width: 100%; height: 100%; object-fit: cover; position: relative; z-index: 1; }
+        
+        /* Camera Feed embedded strictly in circle */
+        #camera-feed { 
+            width: 100%; height: 100%; object-fit: cover; 
+            display: none; position: absolute; inset: 0; z-index: 2; 
+        }
+
+        .display-name { font-size: clamp(2.5rem, 5vw, 3.5rem); font-weight: 900; letter-spacing: -2px; margin-bottom: 5px;}
+        .grad-text { background: var(--grad); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+
+        .btn-primary { padding: 12px 24px; border-radius: 8px; background: var(--grad); color: #fff; border: none; font-weight: 800; font-size: 0.8rem; letter-spacing: 0.5px; cursor: pointer; transition: 0.3s; text-transform: uppercase;}
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(220, 38, 38, 0.3); }
+        .btn-ghost { padding: 12px 24px; border-radius: 8px; background: rgba(255,255,255,0.05); color: #fff; border: 1px solid var(--border); font-weight: 800; font-size: 0.8rem; letter-spacing: 0.5px; cursor: pointer; transition: 0.3s; text-transform: uppercase;}
+        .btn-ghost:hover { background: rgba(255,255,255,0.1); }
+
+        /* ── TACTICAL ICON BUTTONS ── */
+        .icon-btn {
+            width: 44px;
+            height: 44px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            padding: 0 !important; /* Eradicate default button padding to achieve exact dimensions */
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .icon-btn i {
+            line-height: 1;
+        }
+
+        .info-section { background: var(--glass); border: 1px solid var(--border); border-radius: 24px; padding: 40px; backdrop-filter: blur(20px); }
+        .section-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; border-bottom: 1px solid var(--border); padding-bottom: 20px;}
+        .admin-title { font-size: 1.1rem; font-weight: 900; color: var(--text-main); letter-spacing: 1px; text-transform: uppercase;}
+        
+        .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+        @media(max-width: 600px) { .info-grid { grid-template-columns: 1fr; } }
+        
+        .form-group { display: flex; flex-direction: column; gap: 8px; }
+        .form-group label { font-size: 0.7rem; color: var(--orange); text-transform: uppercase; font-weight: 800; letter-spacing: 0.5px;}
+        
+        .form-input { 
+            background: transparent; border: 1px solid transparent; 
+            color: #fff; padding: 12px 0; border-radius: 8px; 
+            font-family: 'Inter', sans-serif; font-weight: 700; font-size: 1rem;
+            outline: none; transition: all 0.3s; width: 100%;
+        }
+
+        /* Tactical split name system matching signup form grid */
+        .name-edit-grid {
+            display: none;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            width: 100%;
+        }
+        @media(max-width: 600px) { .name-edit-grid { grid-template-columns: 1fr; } }
+
+        /* Dynamic edit states toggling viewports */
+        .editing #readonlyNameWrapper { display: none !important; }
+        .editing #editableNameWrapper { display: block !important; }
+
+        .editing .form-input.editable-active { 
+            background: rgba(0,0,0,0.5); 
+            border-color: var(--border); 
+            padding: 12px 16px; 
+            font-weight: 500; 
+        }
+        .editing .form-input.editable-active:focus {
+            border-color: var(--orange);
+            background: #1f1f1f;
+        }
+
+        /* Error and warning indicators */
+        .form-input.invalid {
+            border-color: var(--red) !important;
+            background: rgba(220, 38, 38, 0.05) !important;
+        }
+        .error-hint { 
+            color: var(--red); 
+            font-size: 0.75rem; 
+            font-weight: 600; 
+            margin-top: 6px; 
+            display: none; 
+        }
+        
+        .save-controls { display: none; margin-top: 30px; gap: 12px; justify-content: flex-end; }
+        .editing .save-controls { display: flex; }
+        .editing .edit-btn { display: none; }
+
+        .status-badge { display: inline-block; padding: 6px 12px; border-radius: 6px; font-size: 0.75rem; font-weight: 900; background: rgba(74, 222, 128, 0.15); color: #4ade80; border: 1px solid #15803d; letter-spacing: 1px; width: fit-content; margin-top: 5px;}
+
+        /* Unified overlay message node */
+        #notification { 
+            position: fixed; 
+            bottom: 24px; 
+            right: 24px; 
+            padding: 16px 24px; 
+            border-radius: 12px; 
+            background: #121212; 
+            border-left: 4px solid var(--orange); 
+            color: white; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.6); 
+            display: none; 
+            z-index: 10001; 
+            font-weight: 600; 
+            max-width: 320px; 
+            border-top: 1px solid rgba(255,255,255,0.05);
+            font-size: 0.9rem;
+        }
+
+        /* Loading Overlay */
+        #loadingOverlay { display: none; position: fixed; inset: 0; background: rgba(10, 10, 10, 0.9); z-index: 10001; flex-direction: column; justify-content: center; align-items: center; }
+        .spinner { width: 40px; height: 40px; border: 4px solid rgba(249, 115, 22, 0.1); border-left-color: var(--orange); border-radius: 50%; animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+    <div id="loadingOverlay">
+        <div class="spinner"></div>
+        <p style="margin-top: 15px; font-weight: 600; color: #888;">Synchronizing Tactical Profile...</p>
+    </div>
+
+    <!-- Notification Engine -->
+    <div id="notification"></div>
+
+    <!-- NAVIGATION BAR -->
+    <nav>
+        <a href="home.html" id="logoLink" class="nav-logo">
+            <img src="logo.png" alt="Eagle Eye Logo" class="brand-logo">
+        </a>
+        <div class="nav-right">
+            <div class="nav-user">
+                <button class="dots-btn" id="menuBtn">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="1"></circle><circle cx="12" cy="5" r="1"></circle><circle cx="12" cy="19" r="1"></circle>
+                    </svg>
+                </button>
+                <div class="dropdown-menu" id="dropdownMenu"></div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="hero-bg"></div>
+    <div class="back-nav">
+        <a href="#" onclick="history.back(); return false;" class="btn-back">← RETURN</a>
+    </div>
+
+    <div class="hero">
+        <div class="profile-card">
+            <div class="profile-header">
+                <!-- Profile Image / Embedded circular camera frame container -->
+                <div class="profile-circle" id="profileCircle" title="Change Avatar/Capture Frame">
+                    <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=User" id="profilePic" alt="Profile Picture">
+                    <video id="camera-feed" autoplay playsinline></video>
+                </div>
+                <div>
+                    <!-- Tactical Header Meta Row: Role & dynamic ID number -->
+                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 5px; flex-wrap: wrap;">
+                        <p id="dispRole" style="color: var(--orange); font-weight: 800; font-size: 0.75rem; letter-spacing: 3px; text-transform: uppercase;">LOADING...</p>
+                        <span style="color: rgba(255, 255, 255, 0.15); font-weight: 800; font-size: 0.75rem;">|</span>
+                        <p id="dispTag" style="color: var(--text-dim); font-weight: 800; font-size: 0.75rem; letter-spacing: 1.5px; text-transform: uppercase; font-family: monospace;">ID: LOADING...</p>
+                    </div>
+                    <h1 class="display-name" id="dispName">User <span class="grad-text">Profile</span></h1>
+                    
+                    <!-- Tactical Icon Control Station -->
+                    <div style="margin-top: 20px; display: flex; gap: 12px; flex-wrap: wrap; align-items: center;">
+                        <button class="btn-ghost icon-btn" id="uploadBtn" title="Upload Photo">
+                            <i class="fa-solid fa-upload"></i>
+                        </button>
+                        <button class="btn-primary icon-btn" id="camBtn" title="Activate Camera">
+                            <i class="fa-solid fa-camera"></i>
+                        </button>
+                        <button class="btn-ghost icon-btn" id="cancelCamBtn" style="display: none;" title="Cancel Camera">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                        <input type="file" id="fileInput" accept="image/*" hidden>
+                    </div>
+                </div>
+            </div>
+
+            <div class="info-section" id="profileForm">
+                <div class="section-top">
+                    <h2 class="admin-title">Operational Records</h2>
+                    <button class="btn-ghost edit-btn" onclick="toggleEditMode()">Edit Profile</button>
+                </div>
+                
+                <div class="info-grid">
+                    <!-- Read-Only View State Wrapper -->
+                    <div class="form-group" id="readonlyNameWrapper">
+                        <label>Full Name</label>
+                        <input type="text" id="inpName" class="form-input" placeholder="Loading..." readonly>
+                    </div>
+
+                    <!-- Editable Split View Wrapper mirroring Signup Grid -->
+                    <div class="form-group" id="editableNameWrapper" style="display: none; grid-column: span 2;">
+                        <label>Full Name (Operational Components)</label>
+                        <div class="name-edit-grid">
+                            <div>
+                                <input type="text" id="fname" class="form-input editable-active" placeholder="First *">
+                                <span class="error-hint" id="fname-err">First name is required.</span>
+                            </div>
+                            <div>
+                                <input type="text" id="mname" class="form-input editable-active" placeholder="Middle Name (write 'N/A' if none)">
+                                <span class="error-hint" id="mname-err">Use N/A if none.</span>
+                            </div>
+                            <div>
+                                <input type="text" id="lname" class="form-input editable-active" placeholder="Last *">
+                                <span class="error-hint" id="lname-err">Last name is required.</span>
+                            </div>
+                            <div>
+                                <input type="text" id="suffix" class="form-input editable-active" placeholder="Suffix (write 'N/A' if none)">
+                                <span class="error-hint" id="suffix-err">Use N/A if none.</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Designation Role</label>
+                        <input type="text" id="inpRole" class="form-input" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label>Contact Number</label>
+                        <input type="text" id="inpContact" class="form-input" placeholder="N/A" readonly>
+                        <span class="error-hint" id="inpContact-err">Contact number must start with +63 and contain exactly 10 digits.</span>
+                    </div>
+                    <div class="form-group">
+                        <label>Email Address</label>
+                        <input type="email" id="inpEmail" class="form-input" placeholder="N/A" readonly>
+                        <span class="error-hint" id="inpEmail-err">Please enter a valid email address containing an '@'.</span>
+                    </div>
+                    <div class="form-group">
+                        <label>ID Number</label>
+                        <input type="text" id="inpTag" class="form-input" readonly>
+                    </div>
+                    <div class="form-group" style="grid-column: span 2;">
+                        <label>Username</label>
+                        <input type="text" id="inpUser" class="form-input" readonly>
+                    </div>
+                </div>
+
+                <div class="save-controls">
+                    <button class="btn-ghost" onclick="cancelEdit()">Discard</button>
+                    <button class="btn-primary" onclick="saveProfile()">Save Changes</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- External SDKs -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-init.js"></script>
+
+    <script>
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        const fileInput = document.getElementById('fileInput');
+        const profilePic = document.getElementById('profilePic');
+        const profileCircle = document.getElementById('profileCircle');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const camBtn = document.getElementById('camBtn');
+        const cancelCamBtn = document.getElementById('cancelCamBtn');
+        const video = document.getElementById('camera-feed');
+        const profileForm = document.getElementById('profileForm');
+
+        // Combined vs Structured inputs
+        const inpName = document.getElementById('inpName');
+        const fnameInput = document.getElementById('fname');
+        const mnameInput = document.getElementById('mname');
+        const lnameInput = document.getElementById('lname');
+        const suffixInput = document.getElementById('suffix');
+
+        const inpRole = document.getElementById('inpRole');
+        const inpContact = document.getElementById('inpContact');
+        const inpEmail = document.getElementById('inpEmail');
+        const inpTag = document.getElementById('inpTag');
+        const inpUser = document.getElementById('inpUser');
+        const dispName = document.getElementById('dispName');
+        const dispRole = document.getElementById('dispRole');
+        const dispTag = document.getElementById('dispTag');
+
+        let currentRole = localStorage.getItem('userRole') || 'user';
+        let loggedInUserId = localStorage.getItem('userId'); 
+        let isCameraActive = false;
+
+        // Active operational warning notification engine
+        function showNotification(msg) {
+            const n = document.getElementById('notification');
+            n.innerText = msg;
+            n.style.display = 'block';
+            setTimeout(() => { n.style.display = 'none'; }, 5000);
+        }
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            setupNavigation();
+            setupContactFormatter();
+            setupInputCleaners();
+            setupAvatarClickInteraction();
+            await fetchUserData();
+        });
+
+        // Setup clicking the actual circle to upload files or snap active photos
+        function setupAvatarClickInteraction() {
+            // Upload button triggers original hidden upload dialog
+            if (uploadBtn) {
+                uploadBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    fileInput.click();
+                });
+            }
+
+            profileCircle.addEventListener('click', (e) => {
+                // If the camera layout is active, clicking the circle captures the image instantly
+                if (profileCircle.classList.contains('camera-active')) {
+                    e.stopPropagation();
+                    capturePhoto();
+                } else {
+                    fileInput.click();
+                }
+            });
+        }
+
+        // Strict real-time formatting mechanism derived from signup.html
+        function setupContactFormatter() {
+            inpContact.addEventListener('focus', function() {
+                if (profileForm.classList.contains('editing') && !this.value.startsWith('+63')) {
+                    this.value = '+63 ';
+                }
+            });
+
+            inpContact.addEventListener('input', function(e) {
+                if (!profileForm.classList.contains('editing')) return;
+                let val = e.target.value;
+
+                // Enforce tactical country prefix
+                if (!val.startsWith('+63')) {
+                    val = '+63 ' + val.replace(/^\+?(63)?\s*/, '');
+                }
+
+                let body = val.substring(3);
+                let numericBody = body.replace(/\D/g, '');
+
+                // Lock down body count limit
+                if (numericBody.length > 10) {
+                    numericBody = numericBody.substring(0, 10);
+                }
+
+                e.target.value = '+63 ' + numericBody;
+            });
+        }
+
+        // Dynamically strip warning visual indices on input
+        function setupInputCleaners() {
+            const fields = [
+                { input: fnameInput, errorId: 'fname-err' },
+                { input: mnameInput, errorId: 'mname-err' },
+                { input: lnameInput, errorId: 'lname-err' },
+                { input: suffixInput, errorId: 'suffix-err' },
+                { input: inpContact, errorId: 'inpContact-err' },
+                { input: inpEmail, errorId: 'inpEmail-err' }
+            ];
+
+            fields.forEach(f => {
+                f.input.addEventListener('input', () => {
+                    f.input.classList.remove('invalid');
+                    const errSpan = document.getElementById(f.errorId);
+                    if (errSpan) errSpan.style.display = 'none';
+                });
+            });
+        }
+
+        // Clean formatting presentation utility
+        function formatContactForDisplay(rawNo) {
+            if (!rawNo || rawNo === 'N/A') return 'N/A';
+            const stripped = rawNo.replace(/\s+/g, '');
+            if (stripped.startsWith('+63') && stripped.length === 13) {
+                return `+63 ${stripped.substring(3)}`;
+            }
+            return rawNo;
+        }
+
+        // Helper function to dynamically resize and compress image file down to 300px max
+        function getOptimizedImage(src, callback) {
+            const img = new Image();
+            img.crossOrigin = 'Anonymous';
+            img.onload = function() {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+                
+                // Maintain aspect ratio with bounds capped at 300px max
+                if (width > height) {
+                    if (width > 300) {
+                        height = Math.round((height * 300) / width);
+                        width = 300;
+                    }
+                } else {
+                    if (height > 300) {
+                        width = Math.round((width * 300) / height);
+                        height = 300;
+                    }
+                }
+                
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                
+                // Compress as highly optimized JPEG (0.85 quality ratio)
+                const base64 = canvas.toDataURL('image/jpeg', 0.85);
+                
+                canvas.toBlob((blob) => {
+                    callback({ base64, blob });
+                }, 'image/jpeg', 0.85);
+            };
+            img.onerror = function() {
+                callback(null);
+            };
+            img.src = src;
+        }
+
+        async function fetchUserData() {
+            if (!loggedInUserId || !window.supabase) {
+                console.error("Session Missing: userId or supabase not found");
+                return;
+            }
+
+            loadingOverlay.style.display = 'flex';
+
+            try {
+                const { data, error } = await window.supabase
+                    .from('accounts')
+                    .select('*')
+                    .eq('id', loggedInUserId)
+                    .single();
+
+                if (error) throw error;
+
+                if (data) {
+                    const fName = data.first_name || '';
+                    const mName = data.middle_name || 'N/A';
+                    const lName = data.last_name || '';
+                    const suffix = data.suffix || 'N/A';
+
+                    // Formulate read-only aggregate full name
+                    const cleanedMiddle = mName === 'N/A' ? '' : mName;
+                    const cleanedSuffix = suffix === 'N/A' ? '' : suffix;
+                    const compositeName = `${fName} ${cleanedMiddle} ${lName} ${cleanedSuffix}`.replace(/\s+/g, ' ').trim();
+                    
+                    inpName.value = compositeName || 'No Name Configured';
+                    
+                    // Assign to dedicated operational inputs
+                    fnameInput.value = fName;
+                    mnameInput.value = mName;
+                    lnameInput.value = lName;
+                    suffixInput.value = suffix;
+
+                    inpRole.value = (data.role || 'user').toUpperCase();
+                    inpContact.value = formatContactForDisplay(data.contact_no);
+                    inpEmail.value = data.email || 'N/A';
+                    inpTag.value = data.id;
+                    inpUser.value = data.username || 'N/A';
+
+                    updateHeaderDisplay(fName, lName, data.role || 'user', data.id || 'N/A');
+                    
+                    if (data.profile_pic) {
+                        profilePic.src = data.profile_pic;
+                        profilePic.dataset.base64 = data.profile_pic;
+                    } else {
+                        const fallBackUrl = `https://api.dicebear.com/7.x/avataaars/svg?seed=${data.username || 'User'}`;
+                        profilePic.src = fallBackUrl;
+                        profilePic.dataset.base64 = fallBackUrl;
+                    }
+                }
+            } catch (err) {
+                console.error("Fetch Profile Error:", err);
+                showNotification("Failed to sync structural records.");
+            } finally {
+                loadingOverlay.style.display = 'none';
+            }
+        }
+
+        function updateHeaderDisplay(first, last, role, tagId) {
+            dispRole.innerText = role.toUpperCase();
+            if (dispTag) {
+                dispTag.innerText = `ID: ${tagId}`;
+            }
+            if (first && last) {
+                dispName.innerHTML = `${first} <span class="grad-text">${last}</span>`;
+            } else {
+                dispName.innerHTML = `<span class="grad-text">${first || last || 'User'}</span>`;
+            }
+        }
+
+        // Navigation setup
+        function setupNavigation() {
+            const dropdownMenu = document.getElementById('dropdownMenu');
+            const logoLink = document.getElementById('logoLink');
+            const menuBtn = document.getElementById('menuBtn');
+
+            logoLink.href = currentRole === 'admin' ? "admin.html" : "home.html";
+
+            dropdownMenu.innerHTML = `
+                <a href="login.html" class="logout-link" onclick="localStorage.clear()">End Session</a>
+            `;
+
+            menuBtn.addEventListener('click', (e) => { e.stopPropagation(); dropdownMenu.classList.toggle('show'); });
+            document.addEventListener('click', () => dropdownMenu.classList.remove('show'));
+        }
+
+        // Toggle inputs on profile layout
+        function enterEditMode() {
+            profileForm.classList.add('editing');
+            inpContact.removeAttribute('readonly');
+            inpEmail.removeAttribute('readonly');
+            
+            // Apply edit styling states
+            inpContact.classList.add('editable-active');
+            inpEmail.classList.add('editable-active');
+        }
+
+        function toggleEditMode() {
+            enterEditMode();
+            fnameInput.focus();
+        }
+
+        function cancelEdit() {
+            profileForm.classList.remove('editing');
+            inpContact.setAttribute('readonly', 'true');
+            inpEmail.setAttribute('readonly', 'true');
+            
+            inpContact.classList.remove('editable-active');
+            inpEmail.classList.remove('editable-active');
+
+            // Strip out pending uploads
+            window.pendingImageBlob = null;
+
+            // Strip out warnings on cancel
+            const activeElements = [fnameInput, mnameInput, lnameInput, suffixInput, inpContact, inpEmail];
+            activeElements.forEach(el => el.classList.remove('invalid'));
+            
+            const activeErrors = ['fname-err', 'mname-err', 'lname-err', 'suffix-err', 'inpContact-err', 'inpEmail-err'];
+            activeErrors.forEach(id => {
+                const errSpan = document.getElementById(id);
+                if (errSpan) errSpan.style.display = 'none';
+            });
+
+            fetchUserData(); 
+        }
+
+        function flagValidationError(inputEl, errorId, message) {
+            inputEl.classList.add('invalid');
+            const errSpan = document.getElementById(errorId);
+            if (errSpan) {
+                errSpan.innerText = message;
+                errSpan.style.display = 'block';
+            }
+        }
+
+        // Upload handler to upload photo file block to Supabase storage if possible, with database base64 fallback
+        async function uploadProfilePicture() {
+            if (!window.pendingImageBlob) {
+                // Return existing profile picture if no changes are pending
+                return profilePic.src;
+            }
+
+            const fileName = `${loggedInUserId}_${Date.now()}.jpg`;
+
+            try {
+                const supabase = window.supabase;
+                // Attempt to upload image to 'avatars' storage bucket
+                const { data, error } = await supabase.storage
+                    .from('avatars')
+                    .upload(fileName, window.pendingImageBlob, {
+                        contentType: 'image/jpeg',
+                        cacheControl: '3600',
+                        upsert: true
+                    });
+
+                if (!error && data) {
+                    // Get public URL from Storage
+                    const { data: publicUrlData } = supabase.storage
+                        .from('avatars')
+                        .getPublicUrl(fileName);
+
+                    if (publicUrlData && publicUrlData.publicUrl) {
+                        return publicUrlData.publicUrl;
+                    }
+                }
+            } catch (storageErr) {
+                console.warn("Storage upload failed or avatars bucket unconfigured. Falling back to DB text storage...", storageErr);
+            }
+
+            // Fallback: If Storage is not configured or errors occur, return optimized base64 string
+            return profilePic.dataset.base64 || profilePic.src;
+        }
+
+        async function saveProfile() {
+            if (!loggedInUserId) return;
+            
+            let integrityCheck = true;
+
+            // 1. First Name integrity check
+            if (!fnameInput.value.trim()) {
+                flagValidationError(fnameInput, 'fname-err', 'First name is required.');
+                integrityCheck = false;
+            }
+
+            // 2. Middle name checklist (forces explicit fallback input declaration)
+            if (!mnameInput.value.trim()) {
+                flagValidationError(mnameInput, 'mname-err', "Middle name cannot be blank. Enter 'N/A' if none.");
+                integrityCheck = false;
+            }
+
+            // 3. Last Name integrity check
+            if (!lnameInput.value.trim()) {
+                flagValidationError(lnameInput, 'lname-err', 'Last name is required.');
+                integrityCheck = false;
+            }
+
+            // 4. Suffix checklist
+            if (!suffixInput.value.trim()) {
+                flagValidationError(suffixInput, 'suffix-err', "Suffix cannot be blank. Enter 'N/A' if none.");
+                integrityCheck = false;
+            }
+
+            // 5. Unified strict country mobile validation
+            const contactStripped = inpContact.value.replace(/\s+/g, '');
+            if (contactStripped.length !== 13 || !contactStripped.startsWith('+63')) {
+                flagValidationError(inpContact, 'inpContact-err', 'Requires +63 followed by exactly 10 digits.');
+                integrityCheck = false;
+            }
+
+            // 6. Interactive email format validation
+            const emailVal = inpEmail.value.trim();
+            if (!emailVal || !emailVal.includes('@')) {
+                flagValidationError(inpEmail, 'inpEmail-err', "Please enter a valid email address containing an '@'.");
+                integrityCheck = false;
+            }
+
+            if (!integrityCheck) {
+                showNotification("Operational parameters fail validation. Correct highlight elements.");
+                return;
+            }
+
+            loadingOverlay.style.display = 'flex';
+
+            try {
+                // Upload or get optimized data fallback URL
+                const finalProfilePicUrl = await uploadProfilePicture();
+
+                const { error } = await window.supabase
+                    .from('accounts')
+                    .update({
+                        first_name: fnameInput.value.trim(),
+                        middle_name: mnameInput.value.trim(),
+                        last_name: lnameInput.value.trim(),
+                        suffix: suffixInput.value.trim(),
+                        contact_no: contactStripped,
+                        email: emailVal,
+                        profile_pic: finalProfilePicUrl 
+                    })
+                    .eq('id', loggedInUserId);
+
+                if (error) throw error;
+                
+                // Reset pending image change
+                window.pendingImageBlob = null;
+
+                profileForm.classList.remove('editing');
+                inpContact.setAttribute('readonly', 'true');
+                inpEmail.setAttribute('readonly', 'true');
+                inpContact.classList.remove('editable-active');
+                inpEmail.classList.remove('editable-active');
+
+                await fetchUserData();
+                showNotification('Profile synchronization completed successfully.');
+            } catch (err) {
+                console.error("Save Error:", err);
+                showNotification('Sync Failed: ' + (err.message || 'Check network database permissions.'));
+            } finally {
+                loadingOverlay.style.display = 'none';
+            }
+        }
+
+        // Handle File Upload
+        fileInput.onchange = e => {
+            const file = fileInput.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    // Pass image data to optimizer before setting
+                    getOptimizedImage(event.target.result, (res) => {
+                        if (res) {
+                            profilePic.src = res.base64;
+                            profilePic.dataset.base64 = res.base64;
+                            window.pendingImageBlob = res.blob; // Save blob for storage upload attempt
+                            enterEditMode(); 
+                        } else {
+                            showNotification("Failed to optimize profile pic. Re-upload or select another picture.");
+                        }
+                    });
+                    if (isCameraActive) {
+                        stopCameraStream();
+                    }
+                };
+                reader.readAsDataURL(file);
+            }
+        };
+
+        // Utility to gracefully terminate camera stream
+        function stopCameraStream() {
+            if (video.srcObject) {
+                video.srcObject.getTracks().forEach(track => track.stop());
+                video.srcObject = null;
+            }
+            video.style.display = 'none';
+            profileCircle.classList.remove('camera-active');
+            isCameraActive = false;
+            camBtn.innerHTML = '<i class="fa-solid fa-camera"></i>';
+            camBtn.title = "Activate Camera";
+            cancelCamBtn.style.display = 'none';
+        }
+
+        // Snap active circular preview frame
+        function capturePhoto() {
+            const canvas = document.createElement('canvas');
+            // Pull real camera coordinates or fall back to frame proportions
+            canvas.width = video.videoWidth || 280; 
+            canvas.height = video.videoHeight || 280;
+            canvas.getContext('2d').drawImage(video, 0, 0);
+            
+            const rawSnap = canvas.toDataURL('image/png');
+            getOptimizedImage(rawSnap, (res) => {
+                if (res) {
+                    profilePic.src = res.base64;
+                    profilePic.dataset.base64 = res.base64;
+                    window.pendingImageBlob = res.blob; // Save blob for storage upload attempt
+                    enterEditMode(); 
+                    stopCameraStream();
+                    showNotification("Biometric image snapped successfully.");
+                } else {
+                    showNotification("Failed to optimize snapped picture.");
+                }
+            });
+        }
+
+        // Handle Camera Capture
+        camBtn.onclick = async (e) => {
+            e.stopPropagation(); // Stop bubbling to circle upload triggers
+            
+            if (!isCameraActive) {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ 
+                        video: { width: { ideal: 280 }, height: { ideal: 280 } } 
+                    });
+                    video.srcObject = stream; 
+                    video.style.display = 'block';
+                    profileCircle.classList.add('camera-active');
+                    isCameraActive = true;
+                    camBtn.innerHTML = '<i class="fa-solid fa-circle-dot"></i>'; // Morph icon to shutter
+                    camBtn.title = "Capture";
+                    cancelCamBtn.style.display = 'inline-flex';
+                } catch (err) { 
+                    showNotification("Camera access denied or device unavailable."); 
+                }
+            } else {
+                capturePhoto();
+            }
+        };
+
+        // Handle Camera Capture Cancellation
+        cancelCamBtn.onclick = (e) => {
+            e.stopPropagation(); // Avoid triggering file select dialog
+            stopCameraStream();
+            showNotification("Camera acquisition session aborted.");
+        };
+    </script>
+</body>
+</html>

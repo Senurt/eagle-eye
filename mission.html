@@ -1,0 +1,2182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Eagle Eye | Mission Control</title>
+    
+    <link rel="icon" type="image/png" href="favicon.png">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- External APIs -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.4.10/hls.min.js"></script>
+
+    <!-- Supabase Database Integration -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="supabase-init.js"></script>
+
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --black: #0a0a0a;
+            --orange: #F97316;
+            --red: #DC2626;
+            --accent: #F97316;
+            --green-status: #00ff9d;
+            --text-main: #ffffff;
+            --text-dim: rgba(255, 255, 255, 0.5);
+            --border: rgba(255, 255, 255, 0.08);
+            --card-bg: #121212;
+            --mono: 'DM Mono', monospace;
+            --grad: linear-gradient(90deg, #F97316 0%, #DC2626 100%);
+        }
+
+        body {
+            height: 100vh;
+            font-family: 'Inter', sans-serif;
+            background: var(--black);
+            color: var(--text-main);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); }
+        ::-webkit-scrollbar-thumb { background: linear-gradient(180deg, var(--orange) 0%, var(--red) 100%); border-radius: 10px; }
+
+        nav {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0 44px; height: 80px; border-bottom: 1px solid var(--border);
+            background: var(--black); z-index: 1000;
+        }
+        .nav-logo { display: flex; align-items: center; gap: 14px; text-decoration: none; }
+        .brand-logo { height: 50px; width: auto; filter: invert(1) contrast(200%); mix-blend-mode: screen; }
+
+        .nav-right { display: flex; align-items: center; gap: 32px; height: 100%; }
+        .nav-links { display: flex; gap: 32px; height: 100%; align-items: center; }
+        .nav-links a {
+            position: relative; font-weight: 700; font-size: 0.85rem; color: var(--text-dim); 
+            text-decoration: none; text-transform: uppercase; letter-spacing: 0.05em;
+            height: 100%; display: flex; align-items: center; transition: all .2s ease;
+        }
+        .nav-links a:hover, .nav-links a.active { color: #fff; }
+        .nav-links a.active::after {
+            content: ''; position: absolute; bottom: 0; left: 0; right: 0;
+            height: 2px; background: var(--grad);
+            box-shadow: 0 0 10px rgba(249, 115, 22, 0.5);
+        }
+
+        .nav-user { position: relative; display: flex; align-items: center; }
+        .dots-btn { 
+            background: transparent; border: none; color: var(--text-dim); 
+            cursor: pointer; padding: 10px; border-radius: 10px; transition: all 0.2s;
+        }
+        .dots-btn:hover { background: rgba(255, 255, 255, 0.05); color: #fff; }
+
+        .dropdown-menu {
+            position: absolute; top: calc(100% + 10px); right: 0; width: 180px;
+            background: #121212; border: 1px solid var(--border); border-radius: 16px;
+            padding: 8px; display: none; flex-direction: column; z-index: 5000;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.6); backdrop-filter: blur(10px);
+        }
+        .dropdown-menu.show { display: flex; animation: dropIn 0.2s ease-out; }
+        @keyframes dropIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+
+        .dropdown-menu a {
+            padding: 12px 16px; text-decoration: none; color: var(--text-dim);
+            font-size: 0.85rem; font-weight: 600; border-radius: 8px; transition: all 0.2s;
+        }
+        .dropdown-menu a:hover { background: rgba(255, 255, 255, 0.05); color: #fff; }
+        .dropdown-divider { border: 0; border-top: 1px solid var(--border); margin: 8px 0; }
+        .logout-link { color: var(--red) !important; }
+
+        .glass-card { background: rgba(18, 18, 18, 0.6); border: 1px solid var(--border); border-radius: 12px; backdrop-filter: blur(12px); padding: 16px; }
+        .btn-primary { background: var(--orange); border: none; color: #fff; font-weight: 700; border-radius: 8px; cursor: pointer; height: 36px; display: flex; align-items: center; justify-content: center; transition: 0.2s; }
+        .btn-ghost { background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: #fff; font-weight: 600; cursor: pointer; border-radius: 8px; transition: 0.2s; }
+
+        .split-layout { display: flex; height: calc(100vh - 80px); width: 100%; overflow: hidden; }
+
+        .hub-pane { 
+            flex: 0 0 400px; 
+            border-right: 1px solid var(--border); 
+            padding: 24px; 
+            display: flex; 
+            flex-direction: column; 
+            gap: 16px; 
+            overflow-y: auto; 
+            background: #0d0d0d; 
+            scrollbar-gutter: stable;
+        }
+        
+        .hub-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+        .hub-header h2 { font-size: 1.1rem; font-weight: 900; color: #fff; letter-spacing: 0.05em; }
+        .status-badge { background: rgba(255, 255, 255, 0.05); color: var(--text-dim); border: 1px solid var(--border); padding: 4px 10px; border-radius: 20px; font-size: 0.65rem; font-weight: 800; text-transform: uppercase; }
+
+        .stats-grid { display: grid; grid-template-columns: 1fr; gap: 10px; margin-top: 10px; }
+        .stat-box { background: rgba(0,0,0,0.3); border: 1px solid var(--border); border-radius: 8px; padding: 12px; }
+        .stat-label { font-size: 0.6rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 4px; }
+        .stat-value { font-family: 'Inter'; font-size: 1.8rem; font-weight: 900; line-height: 1; }
+        
+        .stat-value.green { color: var(--green-status); } 
+        .stat-value.red { color: var(--red); }
+        .stat-value.orange { color: var(--orange); }
+
+        .tactical-popup { pointer-events: auto; }
+        .pop-title { font-weight: 900; font-size: 1.1rem; margin-bottom: 4px; color: var(--text-dim); line-height: 1.2; letter-spacing: -0.02em; }
+        .pop-meta { font-size: 0.7rem; color: var(--text-dim); margin-bottom: 10px; font-family: var(--mono); border-left: 2px solid var(--text-dim); padding-left: 8px; }
+        .pop-details { background: rgba(255,255,255,0.05); padding: 10px; border-radius: 8px; font-size: 0.7rem; border: 1px solid rgba(255,255,255,0.03); }
+        .pop-details p { margin-bottom: 4px; line-height: 1.4; color: var(--text-dim); }
+        .pop-details strong { color: var(--orange); font-weight: 800; text-transform: uppercase; font-size: 0.6rem; display: block; margin-bottom: 1px;}
+
+        /* Survivor Tracking Items UI Styles */
+        .survivor-list-container {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-top: 12px;
+            max-height: 340px;
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+
+        .survivor-card {
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            transition: border-color 0.2s, background 0.2s;
+        }
+        .survivor-card:hover {
+            border-color: rgba(249, 115, 22, 0.3);
+            background: rgba(255, 255, 255, 0.04);
+        }
+
+        .survivor-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .survivor-tag {
+            font-family: var(--mono);
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: var(--orange);
+            background: rgba(249, 115, 22, 0.1);
+            padding: 2px 6px;
+            border-radius: 4px;
+            border: 1px solid rgba(249, 115, 22, 0.25);
+        }
+
+        .survivor-status-badge {
+            font-size: 0.6rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            padding: 2px 6px;
+            border-radius: 12px;
+        }
+        .status-pending { background: rgba(249, 115, 22, 0.15); color: var(--orange); }
+        .status-resolved { background: rgba(0, 255, 157, 0.15); color: var(--green-status); }
+        .status-aborted { background: rgba(220, 38, 38, 0.15); color: var(--red); }
+
+        .survivor-body {
+            display: flex;
+            gap: 10px;
+            align-items: flex-start;
+        }
+
+        .survivor-thumb-wrapper {
+            position: relative;
+            width: 50px;
+            height: 60px;
+            border-radius: 4px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+            flex-shrink: 0;
+            background: #000;
+        }
+
+        .survivor-thumb {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .survivor-thumb-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.2s;
+            cursor: pointer;
+        }
+        .survivor-thumb-wrapper:hover .survivor-thumb-overlay {
+            opacity: 1;
+        }
+        .survivor-thumb-overlay i {
+            font-size: 0.8rem;
+            color: #fff;
+        }
+
+        .survivor-info {
+            flex: 1;
+            font-size: 0.65rem;
+            color: var(--text-dim);
+            line-height: 1.3;
+        }
+
+        .survivor-info p {
+            margin-bottom: 2px;
+        }
+
+        .survivor-actions {
+            display: flex;
+            gap: 6px;
+            margin-top: 4px;
+        }
+
+        .survivor-btn {
+            font-size: 0.65rem;
+            font-weight: 700;
+            padding: 4px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            border: 1px solid transparent;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            background: rgba(255, 255, 255, 0.05);
+            color: #fff;
+            border-color: var(--border);
+        }
+        .survivor-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+        .btn-success-action {
+            background: rgba(0, 255, 157, 0.1);
+            color: var(--green-status);
+            border-color: rgba(0, 255, 157, 0.2);
+        }
+        .btn-success-action:hover {
+            background: rgba(0, 255, 157, 0.2);
+        }
+        .btn-abort-action {
+            background: rgba(220, 38, 38, 0.1);
+            color: var(--red);
+            border-color: rgba(220, 38, 38, 0.2);
+        }
+        .btn-abort-action:hover {
+            background: rgba(220, 38, 38, 0.2);
+        }
+
+        .survivor-confirm-block {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(220, 38, 38, 0.08);
+            border: 1px solid rgba(220, 38, 38, 0.3);
+            border-radius: 6px;
+            padding: 6px 8px;
+            margin-top: 4px;
+            animation: slideDown 0.2s ease;
+        }
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .confirm-btn-yes {
+            background: var(--red);
+            color: #fff;
+            border: none;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-weight: 700;
+            font-size: 0.6rem;
+            cursor: pointer;
+        }
+        .confirm-btn-no {
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+            border: 1px solid var(--border);
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-weight: 700;
+            font-size: 0.6rem;
+            cursor: pointer;
+        }
+
+        /* Tactical Picture Magnification Modal */
+        .tactical-modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(5, 5, 5, 0.9);
+            z-index: 10000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            backdrop-filter: blur(8px);
+        }
+        .tactical-modal-content {
+            background: var(--card-bg);
+            border: 1px solid var(--orange);
+            border-radius: 16px;
+            max-width: 600px;
+            width: 100%;
+            box-shadow: 0 0 50px rgba(249, 115, 22, 0.2);
+            overflow: hidden;
+            position: relative;
+        }
+        .modal-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .modal-title {
+            font-weight: 800;
+            color: var(--orange);
+            font-size: 0.9rem;
+            font-family: var(--mono);
+        }
+        .modal-close {
+            background: transparent;
+            border: none;
+            color: var(--text-dim);
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+        .modal-close:hover { color: #fff; }
+        .modal-body {
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+        }
+        .modal-img-frame {
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
+            background: #000;
+            width: 100%;
+            max-height: 380px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-img {
+            width: 100%;
+            height: auto;
+            max-height: 380px;
+            object-fit: contain;
+        }
+
+        /* Original Layout Support */
+        .map-wrapper { 
+            position: relative; width: 100%; height: 250px; min-height: 250px; 
+            border: 1px solid var(--border); border-radius: 12px; overflow: hidden; 
+            background: #000; flex-shrink: 0;
+        }
+        .map-wrapper.fullscreen { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 9999; border-radius: 0; border: none; }
+        .map-header { position: absolute; top: 0; left: 0; right: 0; height: 32px; background: rgba(10, 10, 10, 0.85); z-index: 1000; display: flex; align-items: center; justify-content: space-between; padding: 0 12px; border-bottom: 1px solid var(--border); }
+        .map-header span { font-size: 0.65rem; font-weight: 800; color: #fff; letter-spacing: 0.1em; }
+        #map { width: 100%; height: 100%; }
+
+        .camera-pane { flex: 1; display: flex; flex-direction: column; background: #000; position: relative; overflow: hidden; }
+        .cam-upper, .cam-lower { flex: 1; position: relative; border-bottom: 1px solid var(--border); overflow: hidden; background: #050505; transition: all 0.4s ease; }
+        
+        .feed-fullscreen { position: fixed !important; inset: 0 !important; z-index: 9000 !important; height: 100vh !important; width: 100vw !important; }
+
+        .cam-label { position: absolute; top: 16px; left: 16px; background: rgba(0, 0, 0, 0.7); padding: 4px 10px; border-radius: 4px; font-size: 0.6rem; font-weight: 900; color: #fff; z-index: 100; border: 1px solid var(--border); font-family: var(--mono); }
+        
+        /* Recording Indicator Styles */
+        @keyframes pulseRec {
+            0% { opacity: 1; }
+            50% { opacity: 0.2; }
+            100% { opacity: 1; }
+        }
+        .rec-indicator { position: absolute; top: 16px; right: 16px; z-index: 100; color: var(--red); font-weight: 900; display: none; align-items: center; gap: 8px; font-size: 0.7rem; background: rgba(0,0,0,0.6); padding: 4px 10px; border-radius: 4px; border: 1px solid var(--red); }
+        .rec-indicator i { animation: pulseRec 1s infinite; }
+        
+        .stream-waiting { position: absolute; inset: 0; z-index: 5; display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(10, 10, 10, 0.95); color: var(--text-dim); gap: 15px; }
+
+        .video-container { width: 100%; height: 100%; position: relative; display: flex; align-items: center; justify-content: center; }
+        .stream-video { width: 100%; height: 100%; object-fit: contain; }
+        
+        /* Updated Night Vision Filter */
+        .nv-overlay { 
+            position: absolute; inset: 0; pointer-events: none; z-index: 20; 
+            background-color: rgba(30, 255, 0, 0.15);
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.3'/%3E%3C/svg%3E");
+            mix-blend-mode: screen; opacity: 0; transition: opacity 0.3s; 
+        }
+        .nv-overlay.active { opacity: 1; }
+        .nv-filter { filter: brightness(1.4) contrast(2.5) grayscale(1) sepia(1) hue-rotate(75deg) saturate(8); }
+        
+        .thermal-filter { filter: invert(1) grayscale(1) contrast(2.5) brightness(1.2) hue-rotate(180deg) saturate(200%); }
+
+        .detection-canvas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 30; }
+
+        .operator-uplink { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 500; width: 400px; text-align: center; border: 1px solid var(--orange) !important; display: none; box-shadow: 0 0 30px rgba(249, 115, 22, 0.1); }
+        .uplink-form { display: flex; flex-direction: column; gap: 12px; margin-top: 15px; }
+        .uplink-form input { background: rgba(0,0,0,0.6); border: 1px solid var(--border); padding: 10px 14px; color: #fff; border-radius: 6px; outline: none; font-family: var(--mono); font-size: 0.8rem; }
+        .uplink-form input:focus { border-color: var(--orange); }
+
+        .cam-controls { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 10px; z-index: 300; }
+        .btn-cam-action { background: rgba(15, 15, 15, 0.8); border: 1px solid var(--border); color: #fff; width: 40px; height: 40px; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(8px); transition: 0.2s; }
+        .btn-cam-action:hover { border-color: var(--orange); color: var(--orange); transform: translateY(-2px); }
+        .btn-cam-action.active-btn { color: var(--orange) !important; border-color: var(--orange) !important; box-shadow: 0 0 10px rgba(249, 115, 22, 0.2); }
+
+        .inference-bar { height: 40px; background: #000; border-top: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 20px; font-family: var(--mono); font-size: 0.7rem; color: var(--text-dim); }
+        .inf-track { width: 120px; height: 4px; background: var(--border); border-radius: 2px; position: relative; margin: 0 10px; overflow: hidden; }
+        .inf-fill { position: absolute; height: 100%; width: 0%; background: var(--orange); transition: width 0.3s; }
+
+        .alert-card { border: 1px solid var(--red); background: rgba(220, 38, 38, 0.1); border-radius: 8px; padding: 12px; margin-top: 10px; }
+        .alert-header { display: flex; align-items: center; gap: 10px; color: var(--red); margin-bottom: 8px; font-size: 0.8rem; font-weight: 800; }
+        
+        .dev-badge { position: fixed; bottom: 50px; right: 20px; font-family: var(--mono); font-size: 0.6rem; color: var(--orange); background: rgba(0,0,0,0.5); padding: 2px 6px; border-radius: 4px; border: 1px solid var(--orange); display: none; z-index: 10001; opacity: 0.7; }
+    </style>
+</head>
+<body>
+
+    <nav>
+        <a href="home.html" class="nav-logo">
+            <img src="logo.png" alt="Eagle Eye Logo" class="brand-logo" onerror="this.style.display='none'">
+        </a>
+        <div class="nav-right">
+            <div class="nav-links">
+                <a href="home.html">Home</a>
+                <a href="dashboard.html">Dashboard</a>
+                <a href="mission.html" class="active">Mission</a>
+                <a href="reports.html">Reports</a>
+            </div>
+            <div class="nav-user">
+                <button class="dots-btn" id="menuBtn">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="1"></circle>
+                        <circle cx="12" cy="5" r="1"></circle>
+                        <circle cx="12" cy="19" r="1"></circle>
+                    </svg>
+                </button>
+                <div class="dropdown-menu" id="dropdownMenu">
+                    <a href="profile.html">Account Profile</a>
+                    <hr class="dropdown-divider">
+                    <a href="index.html" class="logout-link" onclick="localStorage.removeItem('userRole')">End Session</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="split-layout">
+        <div class="hub-pane">
+            <div class="hub-header">
+                <h2>MISSION HUB</h2>
+                <div class="status-badge" id="mission-status">STANDBY</div>
+            </div>
+            
+            <div class="glass-card">
+                <div class="section-label" style="font-size: 0.6rem; color: var(--text-dim); text-transform: uppercase; font-weight: 800; margin-bottom: 4px;">Survivor Detection</div>
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <div class="stat-label">Visible Now</div>
+                        <div class="stat-value orange" id="v-now">0</div>
+                    </div>
+                </div>
+                
+                <!-- Dynamic Per-Survivor Tactical List -->
+                <div class="survivor-list-container" id="survivor-list">
+                    <!-- Dynamic survivor triage rows go here -->
+                </div>
+
+                <!-- Mission action controls -->
+                <button id="btn-init-rescue" class="btn-primary" style="width: 100%; margin-top: 10px; font-size: 0.75rem;" onclick="initiateRescue()">INITIATE RESCUE</button>
+                <div id="mission-actions" style="display: none; gap: 10px; margin-top: 10px;">
+                    <button class="btn-primary" style="flex: 1; background: var(--green-status); color: #000; font-size: 0.7rem;" onclick="endMission('successful')">SUCCESS</button>
+                    <button class="btn-ghost" style="flex: 1; border-color: var(--red); color: var(--red); font-size: 0.7rem;" onclick="endMission('aborted')">ABORT</button>
+                </div>
+            </div>
+
+            <!-- LoRa Telemetry diagnostics card inside hub-pane -->
+            <div class="glass-card" id="lora-telemetry-card">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 12px;">
+                    <div style="font-size:0.6rem; color:var(--text-dim); font-weight:800; text-transform:uppercase; letter-spacing:0.1rem; display:flex; align-items:center; gap:6px;">
+                        <i class="fa-solid fa-satellite-dish" style="color:var(--orange)"></i> LoRa Hardware telemetry
+                    </div>
+                    <div style="display:flex; align-items:center; gap:6px; font-size:0.6rem; font-weight:800; font-family: var(--mono);">
+                        <span class="live-pulse" id="lora-pulse" style="background:#888; width: 6px; height: 6px; border-radius: 50%; display:inline-block;"></span>
+                        <span id="lora-status" style="color:#888;">WAITING</span>
+                    </div>
+                </div>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; padding-bottom: 12px; border-bottom: 1px solid var(--border);">
+                    <div>
+                        <div style="font-size: 0.55rem; color: var(--text-dim); text-transform: uppercase; font-weight: 700; margin-bottom: 2px;">Latitude</div>
+                        <div style="font-family: var(--mono); font-size: 0.85rem; font-weight: 700; color: var(--green-status);" id="d-lat">—</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.55rem; color: var(--text-dim); text-transform: uppercase; font-weight: 700; margin-bottom: 2px;">Longitude</div>
+                        <div style="font-family: var(--mono); font-size: 0.85rem; font-weight: 700; color: var(--green-status);" id="d-lng">—</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.55rem; color: var(--text-dim); text-transform: uppercase; font-weight: 700; margin-bottom: 2px;">Altitude</div>
+                        <div style="font-family: var(--mono); font-size: 0.85rem; font-weight: 700; color: #fff;" id="d-alt">—</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.55rem; color: var(--text-dim); text-transform: uppercase; font-weight: 700; margin-bottom: 2px;">Speed</div>
+                        <div style="font-family: var(--mono); font-size: 0.85rem; font-weight: 700; color: #fff;" id="d-spd">—</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.55rem; color: var(--text-dim); text-transform: uppercase; font-weight: 700; margin-bottom: 2px;">Satellites</div>
+                        <div style="font-family: var(--mono); font-size: 0.85rem; font-weight: 700; color: #fff;" id="d-sat">—</div>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.55rem; color: var(--text-dim); text-transform: uppercase; font-weight: 700; margin-bottom: 2px;">Packets</div>
+                        <div style="font-family: var(--mono); font-size: 0.85rem; font-weight: 700; color: var(--orange);" id="d-pkt">0</div>
+                    </div>
+                </div>
+
+                <!-- AMG8833 8x8 Thermal Sub-section moved directly into the Tactical Telemetry Hub -->
+                <div style="margin-top: 12px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                        <span style="font-size:0.55rem; font-weight:800; color:var(--text-dim); text-transform:uppercase; letter-spacing:1px;">AMG8833 Thermal (8x8)</span>
+                        <div style="display:flex; gap:10px; font-family:var(--mono); font-size:0.6rem; font-weight:700;">
+                            <span style="color:var(--text-dim)">MIN: <span id="thermal-gmin" style="color:var(--green-status)">—</span></span>
+                            <span style="color:var(--text-dim)">|</span>
+                            <span style="color:var(--text-dim)">MAX: <span id="thermal-gmax" style="color:#f87171;">—</span></span>
+                        </div>
+                    </div>
+                    <div id="thermal-amg-grid" style="display:grid; grid-template-columns:repeat(8,1fr); gap:2px;">
+                        <!-- JS fills dynamically with 64 grid cells -->
+                    </div>
+                </div>
+            </div>
+
+            <div class="glass-card" id="incident-target-card">
+                <div style="font-size:0.55rem; color:var(--text-dim); font-weight:800; text-transform:uppercase; letter-spacing:0.05em; margin-bottom: 8px;">Active Mission Target</div>
+                <div class="tactical-popup">
+                    <div class="pop-title" id="disp-mission-id">NO ACTIVE MISSION</div>
+                    <div class="pop-meta" id="disp-coords" style="border-left-color: var(--text-dim);">WAITING FOR COORDINATES</div>
+                    <div class="pop-details" id="mission-details-container">
+                        <strong>Situation</strong>
+                        <p id="disp-situation">Standby. No incident assigned.</p>
+                        <strong>Extraction Info</strong>
+                        <p id="disp-extraction">--</p>
+                    </div>
+                </div>
+                
+                <div class="alert-card" id="human-detection-alert" style="display: none;">
+                    <div class="alert-header">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                        <span>SIG-ID: HUMAN DETECTED</span>
+                    </div>
+                    <div style="display:flex; gap:10px;">
+                        <button class="btn-ghost" style="flex:1; height: 30px; font-size: 0.7rem;" onclick="dismissAlert('Dismiss')">DISMISS ALERT</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="map-wrapper" id="mapWrapper">
+                <div class="map-header">
+                    <span><i class="fa-solid fa-satellite"></i> MAP</span>
+                    <button class="btn-cam-action" style="width: 24px; height: 24px; border: none; font-size: 0.7rem;" onclick="toggleMapFullscreen()"><i class="fa-solid fa-expand"></i></button>
+                </div>
+                <div id="map"></div>
+            </div>
+            
+            <div class="glass-card" style="flex:1; display:flex; flex-direction:column; padding: 12px;">
+                <h3 style="font-size:0.65rem; margin-bottom:8px; color:var(--text-dim); text-transform: uppercase;">System Log</h3>
+                <div id="log-entries" style="font-family: var(--mono); font-size: 0.65rem; color: var(--text-dim); overflow-y: auto;">
+                    <div>[--:--] Hub Standby...</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="camera-pane">
+            <div class="cam-upper" id="cam-upper">
+                <div class="nv-overlay" id="nvOverlay"></div>
+                <div class="cam-label">RGB_FEED <span id="nv-text" style="display:none; color:#00ff00;">[NV_ACTIVE]</span></div>
+                <div class="rec-indicator" id="recIndicator"><i class="fa-solid fa-circle"></i> REC</div>
+                
+                <div id="stream-waiting" class="stream-waiting">
+                    <i class="fa-solid fa-tower-broadcast fa-2x" style="color:var(--orange); opacity:0.5"></i>
+                    <p style="font-size: 0.8rem; letter-spacing: 0.1em;">AWAITING UPLINK</p>
+                </div>
+
+                <div class="video-container" id="rgbContainer">
+                    <video id="rgbStream" class="stream-video" autoplay playsinline muted style="display:none;"></video>
+                    <img id="rgbStreamImg" class="stream-video" style="display:none;" alt="Live Stream">
+                    <canvas id="rgbCanvas" class="detection-canvas"></canvas>
+                </div>
+
+                <!-- Establish Stream -->
+                <div class="operator-uplink glass-card" id="operator-uplink">
+                    <h3 style="font-size: 0.8rem; color: var(--orange); text-transform: uppercase; letter-spacing: 0.1em;">Establish Stream</h3>
+                    <div class="uplink-form">
+                        <input type="text" id="stream-url" placeholder="http://10.33.44.238:5000">
+                        <button class="btn-primary" style="background: var(--orange); color: #fff;" onclick="applyTacticalApi()">ESTABLISH LINK</button>
+                    </div>
+                </div>
+
+                <div class="cam-controls">
+                    <!-- Added Disconnect Button -->
+                    <button class="btn-cam-action" id="disconnect-btn" onclick="disconnectStream()" style="display:none;" title="Disconnect Stream"><i class="fa-solid fa-link-slash"></i></button>
+                    
+                    <!-- Record & Capture are now universally available and fully functional -->
+                    <button class="btn-cam-action" id="rec-btn" onclick="toggleRec()" title="Record"><i class="fa-solid fa-circle" style="color:var(--red)"></i></button>
+                    <button class="btn-cam-action" id="capture-btn" onclick="captureSnapshot()" title="Capture"><i class="fa-solid fa-camera"></i></button>
+                    <button class="btn-cam-action" id="nv-btn" onclick="toggleNightVision()" title="Night Vision"><i class="fa-solid fa-moon"></i></button>
+                    <button class="btn-cam-action" onclick="toggleFeedFullscreen('cam-upper')" title="Fullscreen"><i class="fa-solid fa-expand"></i></button>
+                </div>
+            </div>
+
+            <div class="cam-lower" id="cam-lower">
+                <div class="cam-label" style="color:var(--orange)">THERMAL_SCANNER</div>
+                
+                <div id="thermal-waiting" class="stream-waiting">
+                    <i class="fa-solid fa-fire fa-2x" style="color:var(--orange); opacity:0.3"></i>
+                    <p style="font-size:0.7rem">SCANNER OFFLINE</p>
+                </div>
+
+                <!-- 32x32 Interpolated Thermal Grid Canvas Container -->
+                <div class="video-container" id="thermalContainer" style="display:none; width: 100%; height: 100%; position: relative;">
+                    <canvas id="thermalCanvas" style="width: 100%; height: 100%; display: block; background: #050505;"></canvas>
+                </div>
+
+                <div class="cam-controls">
+                    <button class="btn-cam-action" id="thermal-btn" onclick="toggleThermal()" title="Thermal View"><i class="fa-solid fa-fire"></i></button>
+                    <button class="btn-cam-action" onclick="toggleFeedFullscreen('cam-lower')" title="Fullscreen"><i class="fa-solid fa-expand"></i></button>
+                </div>
+            </div>
+
+            <div class="inference-bar">
+                <div style="display:flex; align-items:center;">
+                    <span>INFERENCE:</span>
+                    <div class="inf-track"><div class="inf-fill" id="inf-fill" style="width: 0%"></div></div>
+                    <span id="inf-val">0.0 FPS</span>
+                </div>
+                <div style="display:flex; align-items:center; gap: 20px;">
+                    <div id="sys-status" style="display:flex; align-items:center; gap: 6px; color: var(--red);">
+                        <i class="fa-solid fa-circle" style="font-size: 0.5rem;"></i> OFFLINE
+                    </div>
+                    <div id="clock">00:00:00</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Magnifying Glass Tactical Target Inspection Modal -->
+    <div class="tactical-modal" id="tacticalImageModal">
+        <div class="tactical-modal-content">
+            <div class="modal-header">
+                <span class="modal-title" id="modalTargetTag">TARGET ANALYSIS</span>
+                <button class="modal-close" onclick="closeTacticalModal()"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="modal-body">
+                <div class="modal-img-frame">
+                    <img id="modalTargetImage" class="modal-img" src="" alt="Target Analysis">
+                </div>
+                <div style="font-size: 0.7rem; color: var(--text-dim); text-align: center; font-family: var(--mono);" id="modalTargetMeta">
+                    ANALYZING SIGNAL GEOGRAPHIC DATA...
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="dev-badge" id="dev-badge">DEV_OVERRIDE_ACTIVE</div>
+
+    <script>
+        let API_BASE = "";
+        let HLS_URL = "";
+        let isNV = false;
+        let isHardwareNV = false; // Tracks if hardware is properly handling NV
+        let isThermal = false;
+        let isRescueDeployed = false; 
+        let currentIncidentId = null; 
+        
+        let isRecording = false;
+        let mediaRecorder = null;
+        let recordedChunks = [];
+        
+        let hlsInstance = null;
+        let thermalHls = null;
+        let pollingStats = null;
+        let pollingBoxes = null;
+        
+        let backspaceCount = 0;
+        let currentRole = localStorage.getItem('userRole') || 'user';
+        
+        let capturedTargetIds = new Set(); // To avoid duplicate crops of the same target
+        let latestBoxesData = null; // Bounding box dataset stored globally for imager rendering loop
+
+        let loraSupabase = null;
+        let loraPackets = 0;
+        let loraGpsActive = false; // Tracks whether LoRa hardware currently has a valid active GPS fix
+
+        // Realtime channels & intervals for Survivor Detection protocols
+        let detectionChannel = null;
+        let simulatedDetectionInterval = null;
+
+        // In-memory active detections synchronized from detection_state table or local fallback simulation
+        let activeDetections = [];
+
+        // Simulated Standby Targets with tactical geo coordinates
+        let simulatedTargets = [
+            { id: 101, x: 0.32, y: 0.58, vx: 0.0015, vy: 0.0006, w: 0.22, h: 0.52, lat: 14.4795, lng: 121.0195, status: 'pending', image: '', confidence: 91.4 },
+            { id: 102, x: 0.72, y: 0.62, vx: -0.0018, vy: -0.0004, w: 0.17, h: 0.44, lat: 14.4788, lng: 121.0210, status: 'pending', image: '', confidence: 88.7 }
+        ];
+
+        let DRONE_POS = [14.4793, 121.0198];
+
+        const menuBtn = document.getElementById('menuBtn');
+        const dropdown = document.getElementById('dropdownMenu');
+        menuBtn.addEventListener('click', (e) => { 
+            e.stopPropagation(); 
+            dropdown.classList.toggle('show'); 
+        });
+        document.addEventListener('click', () => dropdown.classList.remove('show'));
+        dropdown.addEventListener('click', (e) => e.stopPropagation());
+
+        const map = L.map('map', { center: DRONE_POS, zoom: 15, zoomControl: false, attributionControl: false });
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
+
+        let droneMarker = null;
+        let survivorMapMarkers = {}; // Keep references of survivor map circles for real-time adjustments
+
+        async function renderMapAssets() {
+            // Drone marker starts un-rendered. Drawn dynamically on map once LoRa reports a positive active GPS Fix.
+            const supabase = window.supabaseClient || window.supabase;
+            if (supabase) {
+                try {
+                    const { data, error } = await supabase.from('incident_logs').select('*');
+                    if (!error && data) {
+                        data.forEach(inc => {
+                            const lat = inc.latitude || inc.lat;
+                            const lng = inc.longitude || inc.lng;
+                            if (lat && lng) {
+                                L.circleMarker([lat, lng], { radius: 8, fillColor: "var(--orange)", color: "#fff", weight: 2, fillOpacity: 1 }).addTo(map).bindTooltip(`INCIDENT: ${inc.id}`);
+                            }
+                        });
+                    }
+                } catch (e) { console.error("Map fetch error:", e); }
+            }
+        }
+
+        function addLog(msg) {
+            const log = document.getElementById('log-entries');
+            const entry = document.createElement('div');
+            entry.style.marginBottom = "4px";
+            const time = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second: '2-digit'});
+            entry.innerHTML = `<span style="color:var(--orange)">[${time}]</span> ${msg}`;
+            log.prepend(entry);
+        }
+
+        function applyRoleRestrictions() {
+            const isAuthorized = (currentRole === 'operator' || currentRole === 'developer');
+            
+            const uplink = document.getElementById('operator-uplink');
+            uplink.style.display = (isAuthorized && !API_BASE) ? 'block' : 'none';
+
+            const camControls = document.querySelectorAll('.cam-controls');
+            camControls.forEach(ctrl => ctrl.style.display = 'flex');
+
+            const disconnectBtn = document.getElementById('disconnect-btn');
+            const recBtn = document.getElementById('rec-btn');
+            const captureBtn = document.getElementById('capture-btn');
+
+            if (disconnectBtn) disconnectBtn.style.display = (isAuthorized && API_BASE) ? 'flex' : 'none';
+            if (recBtn) recBtn.style.display = 'flex';
+            if (captureBtn) captureBtn.style.display = 'flex';
+
+            if (!isAuthorized) {
+                document.getElementById('btn-init-rescue').style.display = isRescueDeployed ? 'none' : 'block';
+                document.getElementById('mission-actions').style.display = isRescueDeployed ? 'flex' : 'none';
+                
+                const waitingText = document.querySelector('#stream-waiting p');
+                if (waitingText) {
+                    waitingText.innerText = API_BASE ? "CONNECTING TO ESTABLISHED STREAM..." : "WAITING FOR OPERATOR UPLINK";
+                }
+                
+                const alertBtn = document.querySelector('#human-detection-alert button');
+                if (alertBtn) alertBtn.style.display = 'block';
+            } else {
+                if (!isRescueDeployed) {
+                    document.getElementById('btn-init-rescue').style.display = 'block';
+                    document.getElementById('mission-actions').style.display = 'none';
+                } else {
+                    document.getElementById('btn-init-rescue').style.display = 'none';
+                    document.getElementById('mission-actions').style.display = 'flex';
+                }
+            }
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === "Backspace") {
+                backspaceCount++;
+                if (backspaceCount >= 5) {
+                    currentRole = 'developer';
+                    localStorage.setItem('userRole', 'developer');
+                    document.getElementById('dev-badge').style.display = 'block';
+                    addLog("Developer override activated.");
+                    applyRoleRestrictions();
+                    backspaceCount = 0;
+                }
+            } else {
+                backspaceCount = 0;
+            }
+        });
+
+        function applyTacticalApi() {
+            let val = document.getElementById('stream-url').value.trim();
+            if (!val) return;
+            if (!val.startsWith('http')) val = 'http://' + val;
+
+            API_BASE = val.replace(/\/$/, '');
+            HLS_URL  = `http://${new URL(API_BASE).hostname}:8888/drone/index.m3u8`;
+
+            localStorage.setItem('establishedStreamUrl', API_BASE);
+            document.getElementById('operator-uplink').style.display = 'none';
+            
+            const waitScreen = document.getElementById('stream-waiting');
+            waitScreen.style.display = 'flex';
+            waitScreen.querySelector('p').innerText = "WAITING FOR STREAM...";
+
+            addLog(`Uplink targeting: ${API_BASE}`);
+            
+            if (!isRescueDeployed) {
+                document.getElementById('v-now').style.color = "";
+                document.getElementById('v-now').classList.add('orange');
+            }
+            
+            initHls();
+            
+            if (pollingStats) clearInterval(pollingStats);
+            if (pollingBoxes) clearInterval(pollingBoxes);
+            pollStats(); 
+            pollBoxes();
+            pollingStats = setInterval(pollStats, 1000);
+            pollingBoxes = setInterval(pollBoxes, 50);
+
+            // Establish and Activate Live Survivor Detection tracking
+            activateSurvivorDetection();
+
+            applyRoleRestrictions();
+        }
+
+        function disconnectStream() {
+            if (hlsInstance) { hlsInstance.destroy(); hlsInstance = null; }
+            if (thermalHls) { thermalHls.destroy(); thermalHls = null; }
+            
+            const rgbVideo = document.getElementById('rgbStream');
+            const rgbImg = document.getElementById('rgbStreamImg');
+            const thermalVideo = document.getElementById('thermalStream');
+            const thermalImg = document.getElementById('thermalStreamImg');
+
+            if (rgbVideo) {
+                rgbVideo.src = "";
+                rgbVideo.removeAttribute('src');
+                rgbVideo.load();
+                rgbVideo.style.display = 'none';
+            }
+            if (rgbImg) {
+                rgbImg.src = "";
+                rgbImg.style.display = 'none';
+            }
+            if (thermalVideo) {
+                thermalVideo.srcObject = null;
+                thermalVideo.src = "";
+                try { thermalVideo.load(); } catch(e) {}
+                thermalVideo.style.display = 'none';
+            }
+            if (thermalImg) {
+                thermalImg.src = "";
+                thermalImg.style.display = 'none';
+            }
+
+            const rgbCanvas = document.getElementById('rgbCanvas');
+            const thermalCanvas = document.getElementById('thermalCanvas');
+            
+            if (rgbCanvas) rgbCanvas.getContext('2d').clearRect(0, 0, 10000, 10000);
+            if (thermalCanvas) thermalCanvas.getContext('2d').clearRect(0, 0, 10000, 10000);
+
+            localStorage.removeItem('establishedStreamUrl');
+            document.getElementById('stream-waiting').style.display = 'flex';
+            document.querySelector('#stream-waiting p').innerText = "AWAITING UPLINK";
+            
+            if (pollingStats) clearInterval(pollingStats);
+            if (pollingBoxes) clearInterval(pollingBoxes);
+            
+            HLS_URL = "";
+            API_BASE = "";
+            if (isRecording) toggleRec();
+            
+            const status = document.getElementById('sys-status');
+            status.innerHTML = '<i class="fa-solid fa-circle" style="font-size: 0.5rem;"></i> OFFLINE';
+            status.style.color = 'var(--red)';
+
+            // Cleanly tear down survivor detection listeners and data representations
+            deactivateSurvivorDetection();
+
+            addLog("Uplink Stream Disconnected.");
+            applyRoleRestrictions();
+        }
+
+        function updateSimulatedTargets() {
+            if (!API_BASE) {
+                // Clear simulated detections if stream is cut
+                activeDetections = activeDetections.filter(d => !String(d.id).startsWith("10"));
+                syncSurvivorGridUI();
+                return;
+            }
+
+            simulatedTargets.forEach(t => {
+                t.x += t.vx;
+                t.y += t.vy;
+                if (t.x < 0.15 || t.x > 0.85) t.vx *= -1;
+                if (t.y < 0.35 || t.y > 0.75) t.vy *= -1;
+            });
+
+            latestBoxesData = {
+                frame_w: 640,
+                frame_h: 480,
+                current: simulatedTargets.filter(t => t.status === 'pending').length,
+                boxes: simulatedTargets.filter(t => t.status === 'pending').map(t => ({
+                    id: t.id,
+                    x1: (t.x - t.w / 2) * 640,
+                    y1: (t.y - t.h / 2) * 480,
+                    x2: (t.x + t.w / 2) * 640,
+                    y2: (t.y + t.h / 2) * 480
+                }))
+            };
+            
+            // Sync simulated targets array inside the dynamic activeDetections view
+            simulatedTargets.forEach(t => {
+                let exists = activeDetections.find(d => d.id === t.id);
+                if (!exists) {
+                    activeDetections.push({
+                        id: t.id,
+                        formatted_tag: "S" + String(t.id).padStart(3, '0'),
+                        latitude: t.lat,
+                        longitude: t.lng,
+                        status: t.status,
+                        cropped_image_url: t.image,
+                        confidence: t.confidence
+                    });
+                } else {
+                    exists.status = t.status;
+                    exists.cropped_image_url = t.image;
+                }
+            });
+
+            syncSurvivorGridUI();
+        }
+
+        // Bilinear interpolation heat colors helper
+        function getBrandThermalColor(r) {
+            r = Math.max(0, Math.min(1, r));
+            const stops = [
+                { r: 0.0,  c: [13, 13, 13] },
+                { r: 0.35, c: [180, 15, 15] },
+                { r: 0.65, c: [220, 38, 38] },
+                { r: 0.88, c: [249, 115, 22] },
+                { r: 1.0,  c: [255, 255, 255] }
+            ];
+            let lower = stops[0], upper = stops[stops.length - 1];
+            for (let i = 0; i < stops.length - 1; i++) {
+                if (r >= stops[i].r && r <= stops[i+1].r) {
+                    lower = stops[i]; upper = stops[i+1]; break;
+                }
+            }
+            const range = upper.r - lower.r;
+            const factor = range === 0 ? 0 : (r - lower.r) / range;
+            return `rgb(${Math.round(lower.c[0] + factor * (upper.c[0] - lower.c[0]))}, ${Math.round(lower.c[1] + factor * (upper.c[1] - lower.c[1]))}, ${Math.round(lower.c[2] + factor * (upper.c[2] - lower.c[2]))})`;
+        }
+
+        function tempColor(t, min, max) {
+            const r = max === min ? 0.5 : (t - min) / (max - min);
+            return { bg: getBrandThermalColor(r), text: r > 0.75 ? '#000' : '#fff' };
+        }
+
+        // Base thermal grid configuration from real readings
+        let latestThermalGrid = new Array(64).fill(26.0);
+        let latestTMin = 26.0;
+        let latestTMax = 32.0;
+
+        function initHls() {
+            const video = document.getElementById('rgbStream');
+            const img = document.getElementById('rgbStreamImg');
+            const waitScreen = document.getElementById('stream-waiting');
+            
+            if (hlsInstance) { hlsInstance.destroy(); hlsInstance = null; }
+            video.style.display = 'block';
+            img.style.display = 'none';
+
+            if (Hls.isSupported()) {
+                hlsInstance = new Hls({
+                    lowLatencyMode:              true,
+                    liveSyncDurationCount:       1,
+                    liveMaxLatencyDurationCount: 2,
+                    maxBufferLength:             2,
+                    maxMaxBufferLength:          4,
+                    highBufferWatchdogPeriod:    1,
+                    nudgeMaxRetry:               10,
+                    nudgeOffset:                 0.2,
+                });
+                hlsInstance.loadSource(HLS_URL);
+                hlsInstance.attachMedia(video);
+                
+                hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => {
+                    video.play();
+                    waitScreen.style.display = 'none';
+                    if (isThermal) syncThermalFeed();
+                });
+                
+                hlsInstance.on(Hls.Events.ERROR, (e, data) => {
+                    if (data.fatal) {
+                        waitScreen.style.display = 'flex';
+                        setTimeout(initHls, 3000);
+                    }
+                });
+            } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+                video.src = HLS_URL;
+                video.addEventListener('loadedmetadata', () => { 
+                    video.play(); 
+                    waitScreen.style.display = 'none';
+                });
+            } else {
+                img.src = API_BASE + '/video_feed';
+                img.onload = () => { waitScreen.style.display = 'none'; };
+                video.style.display = 'none';
+                img.style.display = 'block';
+            }
+        }
+
+        async function pollStats() {
+            try {
+                const r = await fetch(API_BASE + '/stats', { signal: AbortSignal.timeout(2000) });
+                const d = await r.json();
+                if (!isRescueDeployed) {
+                    document.getElementById('v-now').textContent = d.current;
+                }
+                document.getElementById('inf-val').textContent = d.fps.toFixed(1) + ' FPS';
+                document.getElementById('inf-fill').style.width = Math.min(100, (d.fps / 15) * 100) + '%';
+                const status = document.getElementById('sys-status');
+                status.innerHTML = `<i class="fa-solid fa-circle" style="font-size: 0.5rem; color: var(--orange);"></i> LIVE`;
+                status.style.color = 'var(--orange)';
+            } catch {
+                const status = document.getElementById('sys-status');
+                status.innerHTML = '<i class="fa-solid fa-circle" style="font-size: 0.5rem;"></i> OFFLINE';
+                status.style.color = 'var(--red)';
+            }
+        }
+
+        async function pollBoxes() {
+            try {
+                const r = await fetch(API_BASE + '/boxes', { signal: AbortSignal.timeout(1000) });
+                const d = await r.json();
+                latestBoxesData = d;
+                drawDetectionBoxes('rgbCanvas', d);
+                
+                if (d.current > 0) {
+                    if (!isRescueDeployed) document.getElementById('human-detection-alert').style.display = 'block';
+                    if (d.boxes) {
+                        d.boxes.forEach(box => {
+                            if (!capturedTargetIds.has(box.id)) {
+                                captureFigureFromFeed(box, d.frame_w, d.frame_h);
+                            }
+                        });
+                    }
+                }
+            } catch {}
+        }
+
+        // Functional figure crop capture matching detection format
+        function captureFigureFromFeed(box, frameW, frameH) {
+            const rgbActive = document.getElementById('rgbStreamImg').style.display !== 'none' ? document.getElementById('rgbStreamImg') : document.getElementById('rgbStream');
+            if (!rgbActive || (rgbActive.tagName === 'VIDEO' && rgbActive.readyState < 2)) return;
+
+            try {
+                const cropCanvas = document.createElement('canvas');
+                const bw = box.x2 - box.x1;
+                const bh = box.y2 - box.y1;
+                
+                cropCanvas.width = 120;
+                cropCanvas.height = 144;
+                const ctx = cropCanvas.getContext('2d');
+                
+                const srcX = (box.x1 / frameW) * (rgbActive.videoWidth || rgbActive.naturalWidth || rgbActive.clientWidth);
+                const srcY = (box.y1 / frameH) * (rgbActive.videoHeight || rgbActive.naturalHeight || rgbActive.clientHeight);
+                const srcW = (bw / frameW) * (rgbActive.videoWidth || rgbActive.naturalWidth || rgbActive.clientWidth);
+                const srcH = (bh / frameH) * (rgbActive.videoHeight || rgbActive.naturalHeight || rgbActive.clientHeight);
+
+                ctx.drawImage(rgbActive, srcX, srcY, srcW, srcH, 0, 0, cropCanvas.width, cropCanvas.height);
+                const dataUrl = cropCanvas.toDataURL('image/png');
+                
+                // Track internally in active simulated list if not already updated by Realtime
+                let simMatch = simulatedTargets.find(t => t.id === box.id);
+                if (simMatch) {
+                    simMatch.image = dataUrl;
+                }
+                
+                let activeMatch = activeDetections.find(d => d.id === box.id);
+                if (activeMatch) {
+                    activeMatch.cropped_image_url = dataUrl;
+                    syncSurvivorGridUI();
+                }
+
+                capturedTargetIds.add(box.id);
+                addLog(`Target Crop Generated: ID ${box.id}`);
+            } catch (e) {
+                console.warn("Target crop exception:", e);
+            }
+        }
+
+        function drawDetectionBoxes(canvasId, data) {
+            const canvas = document.getElementById(canvasId);
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            let mediaEl = document.getElementById('rgbStreamImg').style.display !== 'none' ? document.getElementById('rgbStreamImg') : document.getElementById('rgbStream');
+            
+            canvas.width = mediaEl.clientWidth || 100;
+            canvas.height = mediaEl.clientHeight || 100;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            if (!data || !data.boxes) return;
+            const sx = canvas.width / data.frame_w;
+            const sy = canvas.height / data.frame_h;
+            
+            data.boxes.forEach(b => {
+                ctx.strokeStyle = "#F97316";
+                ctx.lineWidth = 2;
+                ctx.strokeRect(b.x1 * sx, b.y1 * sy, (b.x2 - b.x1) * sx, (b.y2 - b.y1) * sy);
+                ctx.fillStyle = "#F97316";
+                ctx.font = 'bold 10px monospace';
+                ctx.fillText(`#${b.id}`, b.x1 * sx, b.y1 * sy - 5);
+            });
+        }
+
+        async function toggleNightVision() {
+            const btn = document.getElementById('nv-btn');
+            const nvText = document.getElementById('nv-text');
+            const overlay = document.getElementById('nvOverlay');
+            const rgbStream = document.getElementById('rgbStream');
+            const rgbStreamImg = document.getElementById('rgbStreamImg');
+
+            isNV = !isNV;
+            btn.classList.toggle('active-btn', isNV);
+            nvText.style.display = isNV ? 'inline' : 'none';
+
+            if (!API_BASE) {
+                isHardwareNV = false;
+                overlay.classList.toggle('active', isNV);
+                rgbStream.classList.toggle('nv-filter', isNV);
+                rgbStreamImg.classList.toggle('nv-filter', isNV);
+                addLog(isNV ? "Software NV Simulated (Offline)" : "Optics Standard");
+                return;
+            }
+
+            try {
+                addLog(`Uplinking NV hardware command: ${isNV ? 'ENGAGE' : 'DISENGAGE'}`);
+                const response = await fetch(`${API_BASE}/api/nightvision`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ active: isNV }),
+                    signal: AbortSignal.timeout(3000)
+                });
+
+                if (response.ok) {
+                    isHardwareNV = isNV;
+                    addLog(`Hardware Night Vision ${isNV ? "Active" : "Standby"}`);
+                    overlay.classList.remove('active');
+                    rgbStream.classList.remove('nv-filter');
+                    rgbStreamImg.classList.remove('nv-filter');
+                } else {
+                    throw new Error("Drone rejected NV command");
+                }
+            } catch (error) {
+                isHardwareNV = false;
+                overlay.classList.toggle('active', isNV);
+                rgbStream.classList.toggle('nv-filter', isNV);
+                rgbStreamImg.classList.toggle('nv-filter', isNV);
+            }
+        }
+
+        function toggleThermal() {
+            isThermal = !isThermal;
+            const container = document.getElementById('thermalContainer');
+            const waiting = document.getElementById('thermal-waiting');
+            const btn = document.getElementById('thermal-btn');
+            
+            container.style.display = isThermal ? 'block' : 'none';
+            waiting.style.display = isThermal ? 'none' : 'flex';
+            btn.classList.toggle('active-btn', isThermal);
+            
+            if (isThermal) {
+                addLog("AMG8833 Thermal Scanner Visualizer Engaged");
+                renderThermal();
+            } else {
+                addLog("Thermal Scanner Standby");
+            }
+        }
+
+        function toggleFeedFullscreen(id) {
+            const el = document.getElementById(id);
+            el.classList.toggle('feed-fullscreen');
+            setTimeout(() => {
+                const canvas = el.querySelector('canvas');
+                if(canvas) { canvas.width = el.clientWidth; canvas.height = el.clientHeight; }
+            }, 50);
+        }
+
+        function toggleMapFullscreen() {
+            document.getElementById('mapWrapper').classList.toggle('fullscreen');
+            setTimeout(() => map.invalidateSize(), 400);
+        }
+
+        // Production-grade H.264 video recorder to save specifically inside standard MP4 container blocks
+        function toggleRec() {
+            const rgbActive = document.getElementById('rgbStreamImg').style.display !== 'none' ? document.getElementById('rgbStreamImg') : document.getElementById('rgbStream');
+            const thermalActive = document.getElementById('thermalCanvas');
+            
+            if (!isRecording) {
+                try {
+                    const recCanvas = document.createElement('canvas');
+                    const w = rgbActive.videoWidth || rgbActive.naturalWidth || rgbActive.clientWidth || 640;
+                    const h1 = rgbActive.videoHeight || rgbActive.naturalHeight || rgbActive.clientHeight || 480;
+                    
+                    let h2 = 0;
+                    if (isThermal && thermalActive) {
+                        h2 = thermalActive.height || h1;
+                    }
+                    
+                    recCanvas.width = w;
+                    recCanvas.height = h1 + h2;
+                    const recCtx = recCanvas.getContext('2d');
+                    recCtx.fillStyle = '#000';
+                    recCtx.fillRect(0, 0, recCanvas.width, recCanvas.height);
+                    
+                    const stream = recCanvas.captureStream(30);
+                    
+                    // Prioritize modern standard video container format
+                    let mime = 'video/mp4;codecs=h264';
+                    if (!MediaRecorder.isTypeSupported(mime)) mime = 'video/mp4;codecs=avc1';
+                    if (!MediaRecorder.isTypeSupported(mime)) mime = 'video/mp4';
+                    if (!MediaRecorder.isTypeSupported(mime)) mime = 'video/webm;codecs=h264';
+                    if (!MediaRecorder.isTypeSupported(mime)) mime = 'video/webm';
+                    
+                    mediaRecorder = new MediaRecorder(stream, { mimeType: mime });
+                    recordedChunks = [];
+                    
+                    mediaRecorder.ondataavailable = (e) => {
+                        if (e.data.size > 0) recordedChunks.push(e.data);
+                    };
+                    
+                    mediaRecorder.onstop = () => {
+                        if (recordedChunks.length === 0) {
+                            addLog("Recording failed: No data captured.");
+                            return;
+                        }
+                        // Explicitly construct standard MP4 payload wrapper
+                        const blob = new Blob(recordedChunks, { type: 'video/mp4' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `Drone_Mission_Capture_${new Date().getTime()}.mp4`;
+                        a.click();
+                        URL.revokeObjectURL(url);
+                        addLog("Mission Recording saved successfully as standard MP4.");
+                    };
+                    
+                    mediaRecorder.start(1000); 
+                    isRecording = true;
+                    
+                    function drawRecordFrame() {
+                        if (!isRecording) return;
+                        try {
+                            recCtx.fillStyle = '#050505';
+                            recCtx.fillRect(0, 0, recCanvas.width, recCanvas.height);
+                            const isStreamLive = (API_BASE && (rgbActive.readyState >= 2 || rgbActive.complete));
+                            
+                            if (isStreamLive) {
+                                if (isNV && !isHardwareNV) {
+                                    recCtx.filter = 'brightness(1.4) contrast(2.5) grayscale(1) sepia(1) hue-rotate(75deg) saturate(8)';
+                                } else {
+                                    recCtx.filter = 'none';
+                                }
+                                recCtx.drawImage(rgbActive, 0, 0, w, h1);
+                            } else {
+                                recCtx.filter = 'none';
+                                recCtx.fillStyle = '#111';
+                                recCtx.fillRect(0, 0, w, h1);
+                                recCtx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+                                recCtx.lineWidth = 1;
+                                for (let x = 0; x < w; x += 40) {
+                                    recCtx.beginPath(); recCtx.moveTo(x, 0); recCtx.lineTo(x, h1); recCtx.stroke();
+                                }
+                                for (let y = 0; y < h1; y += 40) {
+                                    recCtx.beginPath(); recCtx.moveTo(0, y); recCtx.lineTo(w, y); recCtx.stroke();
+                                }
+                                recCtx.fillStyle = 'var(--orange)';
+                                recCtx.font = 'bold 16px monospace';
+                                recCtx.fillText("OFFLINE STANDBY SCANNER OVERLAY", 40, 50);
+                                recCtx.fillStyle = '#fff';
+                                recCtx.fillText("LAT: " + DRONE_POS[0].toFixed(5) + " | LNG: " + DRONE_POS[1].toFixed(5), 40, 80);
+                            }
+                            
+                            recCtx.filter = 'none';
+                            const overlayCanvas = document.getElementById('rgbCanvas');
+                            if (overlayCanvas) recCtx.drawImage(overlayCanvas, 0, 0, w, h1);
+                            if (h2 > 0 && isThermal && thermalActive) recCtx.drawImage(thermalActive, 0, h1, w, h2);
+                            
+                            requestAnimationFrame(drawRecordFrame);
+                        } catch (e) {
+                            addLog("Video record synchronization exception.");
+                            isRecording = false;
+                            updateRecUI();
+                            if(mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
+                        }
+                    }
+                    
+                    drawRecordFrame();
+                    addLog("MP4 Video Recording Started");
+                    updateRecUI();
+                } catch (e) {
+                    addLog("MP4 Recording Initialization Error: " + e.message);
+                }
+            } else {
+                if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
+                isRecording = false;
+                addLog("MP4 Video Recording Completed");
+                updateRecUI();
+            }
+        }
+        
+        function updateRecUI() {
+            document.getElementById('recIndicator').style.display = isRecording ? 'flex' : 'none';
+            document.getElementById('rec-btn').classList.toggle('active-btn', isRecording);
+        }
+
+        function captureSnapshot() {
+            const rgbActive = document.getElementById('rgbStreamImg').style.display !== 'none' ? document.getElementById('rgbStreamImg') : document.getElementById('rgbStream');
+            const thermalActive = document.getElementById('thermalCanvas');
+            
+            try {
+                const w = rgbActive.videoWidth || rgbActive.naturalWidth || rgbActive.clientWidth || 640;
+                const h1 = rgbActive.videoHeight || rgbActive.naturalHeight || rgbActive.clientHeight || 480;
+                let h2 = 0;
+                if (isThermal && thermalActive) h2 = thermalActive.height || h1;
+                
+                const canvas = document.createElement('canvas');
+                canvas.width = w; canvas.height = h1 + h2;
+                const ctx = canvas.getContext('2d');
+                
+                const isStreamLive = (API_BASE && (rgbActive.readyState >= 2 || rgbActive.complete));
+                if (isStreamLive) {
+                    if (isNV && !isHardwareNV) {
+                        ctx.filter = 'brightness(1.4) contrast(2.5) grayscale(1) sepia(1) hue-rotate(75deg) saturate(8)';
+                    } else {
+                        ctx.filter = 'none';
+                    }
+                    ctx.drawImage(rgbActive, 0, 0, w, h1);
+                } else {
+                    ctx.fillStyle = '#111';
+                    ctx.fillRect(0, 0, w, h1);
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+                    ctx.lineWidth = 1;
+                    for (let x = 0; x < w; x += 40) {
+                        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h1); ctx.stroke();
+                    }
+                    ctx.fillStyle = 'var(--orange)';
+                    ctx.font = 'bold 16px monospace';
+                    ctx.fillText("SIMULATED SNAPSHOT DATA BLOCK", 40, 50);
+                }
+                
+                ctx.filter = 'none';
+                const overlayCanvas = document.getElementById('rgbCanvas');
+                if (overlayCanvas) ctx.drawImage(overlayCanvas, 0, 0, w, h1);
+                if (isThermal && thermalActive) ctx.drawImage(thermalActive, 0, h1, w, h2);
+
+                const dataUrl = canvas.toDataURL('image/png');
+                const a = document.createElement('a');
+                a.href = dataUrl;
+                a.download = `Snapshot_${new Date().getTime()}.png`;
+                a.click();
+                addLog("Snapshot Saved");
+            } catch (e) {
+                addLog("Capture snapshot error: " + e.message);
+            }
+        }
+
+        function dismissAlert(action) {
+            document.getElementById('human-detection-alert').style.display = 'none';
+            addLog(`Alert Disposition: ${action}`);
+        }
+
+        // Survivor Focus on Map Location handler - instantly pans and targets coordinate
+        function focusSurvivorLocation(lat, lng, formattedTag) {
+            if (!lat || !lng) return;
+            map.setView([lat, lng], 17);
+            
+            // Highlight corresponding Map Circle or create marker dynamically
+            if (survivorMapMarkers[formattedTag]) {
+                survivorMapMarkers[formattedTag].openTooltip();
+            } else {
+                const marker = L.circleMarker([lat, lng], {
+                    radius: 10,
+                    fillColor: 'var(--orange)',
+                    color: '#fff',
+                    weight: 2,
+                    fillOpacity: 0.8
+                }).addTo(map).bindTooltip(`TARGET: ${formattedTag}`).openTooltip();
+                survivorMapMarkers[formattedTag] = marker;
+                marker.openTooltip();
+            }
+            addLog(`Target lock focus: ${formattedTag} positioned at GPS coordinates [${lat.toFixed(5)}, ${lng.toFixed(5)}]`);
+        }
+
+        // Granular Triage Override Controller (Success Scenario)
+        async function triageSuccess(id) {
+            addLog(`Initiating triage Success verification on Target #${id}...`);
+            
+            // Database State Transition
+            const supabase = window.supabaseClient || window.supabase;
+            if (supabase) {
+                try {
+                    await supabase.from('detection_state').update({ status: 'resolved' }).eq('id', id);
+                    await supabase.from('detection_event').insert([{ detection_id: id, status_transition: 'resolved', notes: 'Operator verified success triage' }]);
+                } catch(e) {
+                    console.warn("Supabase Triage Event push exception:", e);
+                }
+            }
+
+            // Fallback simulated update matching current tracking rows
+            let match = simulatedTargets.find(t => t.id === id);
+            if (match) match.status = 'resolved';
+
+            let activeMatch = activeDetections.find(d => d.id === id);
+            if (activeMatch) activeMatch.status = 'resolved';
+
+            syncSurvivorGridUI();
+            addLog(`Triage Confirmed: Target #${id} status registered as SUCCESS.`);
+        }
+
+        // Accurate triage prompt selector UI configuration (Accident Prevention mitigation workflow)
+        function promptAbortConfirmation(id) {
+            // Hide standard action buttons and reveal Confirm Abort sub-block
+            const cardEl = document.getElementById(`survivor-card-${id}`);
+            if (cardEl) {
+                const actionsEl = cardEl.querySelector('.survivor-actions');
+                const confirmEl = cardEl.querySelector('.survivor-confirm-block');
+                if (actionsEl && confirmEl) {
+                    actionsEl.style.display = 'none';
+                    confirmEl.style.display = 'flex';
+                }
+            }
+        }
+
+        function cancelAbortConfirmation(id) {
+            const cardEl = document.getElementById(`survivor-card-${id}`);
+            if (cardEl) {
+                const actionsEl = cardEl.querySelector('.survivor-actions');
+                const confirmEl = cardEl.querySelector('.survivor-confirm-block');
+                if (actionsEl && confirmEl) {
+                    actionsEl.style.display = 'flex';
+                    confirmEl.style.display = 'none';
+                }
+            }
+        }
+
+        // Granular Accidental-Safe Triage Abort commitment
+        async function commitTriageAbort(id) {
+            addLog(`Accident confirmation approved. Aborting Target #${id} scenario...`);
+            
+            // DB Transaction commits
+            const supabase = window.supabaseClient || window.supabase;
+            if (supabase) {
+                try {
+                    await supabase.from('detection_state').update({ status: 'aborted' }).eq('id', id);
+                    await supabase.from('detection_event').insert([{ detection_id: id, status_transition: 'aborted', notes: 'Operator verified abort triage sequence' }]);
+                } catch(e) {
+                    console.warn("Supabase Triage Event abort update failed:", e);
+                }
+            }
+
+            let match = simulatedTargets.find(t => t.id === id);
+            if (match) match.status = 'aborted';
+
+            let activeMatch = activeDetections.find(d => d.id === id);
+            if (activeMatch) activeMatch.status = 'aborted';
+
+            syncSurvivorGridUI();
+            addLog(`Triage Alert: Target #${id} scenario aborted.`);
+        }
+
+        // Tactical Picture Magnification overlay viewer
+        function showTacticalPicture(imageUrl, title, meta) {
+            const modal = document.getElementById('tacticalImageModal');
+            const modalImg = document.getElementById('modalTargetImage');
+            const modalTitle = document.getElementById('modalTargetTag');
+            const modalMeta = document.getElementById('modalTargetMeta');
+            
+            if (modal && modalImg) {
+                modalImg.src = imageUrl || "data:image/svg+xml,%3Csvg viewBox='0 0 200 240' xmlns='http://www.w3.org/2000/svg'%3E%3Crect width='100%25' height='100%25' fill='%23111'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='%23333' font-size='10' font-family='monospace'%3ENO SNAPSHOT%3C/text%3E%3C/svg%3E";
+                if (modalTitle) modalTitle.textContent = title || "TARGET SPECIFICATION ANALYSIS";
+                if (modalMeta) modalMeta.textContent = meta || "GEOLOCATION STABILIZED";
+                modal.style.display = 'flex';
+            }
+        }
+
+        function closeTacticalModal() {
+            const modal = document.getElementById('tacticalImageModal');
+            if (modal) modal.style.display = 'none';
+        }
+
+        // Standard user layout state grid builder
+        function syncSurvivorGridUI() {
+            const gridContainer = document.getElementById('survivor-list');
+            if (!gridContainer) return;
+
+            // Generate or synchronize Leaflet map markers
+            activeDetections.forEach(det => {
+                const formattedTag = det.formatted_tag || `S${String(det.id).padStart(3, '0')}`;
+                
+                // Keep mapping coordinates active if status matches pending
+                if (det.status === 'pending' && det.latitude && det.longitude) {
+                    if (!survivorMapMarkers[formattedTag]) {
+                        const marker = L.circleMarker([det.latitude, det.longitude], {
+                            radius: 8,
+                            fillColor: 'var(--orange)',
+                            color: '#fff',
+                            weight: 2,
+                            fillOpacity: 0.8
+                        }).addTo(map).bindTooltip(`TARGET: ${formattedTag}`);
+                        survivorMapMarkers[formattedTag] = marker;
+                    }
+                } else {
+                    // Remove resolved or aborted targets from direct display
+                    if (survivorMapMarkers[formattedTag]) {
+                        map.removeLayer(survivorMapMarkers[formattedTag]);
+                        delete survivorMapMarkers[formattedTag];
+                    }
+                }
+            });
+
+            // Dynamically construct Survivor list items
+            gridContainer.innerHTML = "";
+            activeDetections.forEach(det => {
+                const formattedTag = det.formatted_tag || `S${String(det.id).padStart(3, '0')}`;
+                const croppedSrc = det.cropped_image_url || "";
+                
+                const card = document.createElement('div');
+                card.className = 'survivor-card';
+                card.id = `survivor-card-${det.id}`;
+                
+                let statusLabel = det.status.toUpperCase();
+                let statusClass = "status-pending";
+                if (det.status === 'resolved') statusClass = "status-resolved";
+                if (det.status === 'aborted') statusClass = "status-aborted";
+
+                const detailMeta = `LAT: ${det.latitude ? det.latitude.toFixed(5) : '—'} | LNG: ${det.longitude ? det.longitude.toFixed(5) : '—'}`;
+                const viewActionParam = `'${croppedSrc}', '${formattedTag}', '${detailMeta}'`;
+
+                card.innerHTML = `
+                    <div class="survivor-header">
+                        <span class="survivor-tag">${formattedTag}</span>
+                        <span class="survivor-status-badge ${statusClass}">${statusLabel}</span>
+                    </div>
+                    <div class="survivor-body">
+                        <div class="survivor-thumb-wrapper">
+                            <img class="survivor-thumb" src="${croppedSrc || 'data:image/svg+xml,%3Csvg viewBox=\'0 0 50 60\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Crect width=\'100%25\' height=\'100%25\' fill=\'%23111\'/%3E%3C/svg%3E'}" alt="Thumb">
+                            <div class="survivor-thumb-overlay" onclick="showTacticalPicture(${viewActionParam})">
+                                <i class="fa-solid fa-magnifying-glass-plus"></i>
+                            </div>
+                        </div>
+                        <div class="survivor-info">
+                            <p style="font-weight: 700; color: #fff;">GPS Coordinates</p>
+                            <p style="font-family: var(--mono); color: var(--green-status);">${det.latitude ? det.latitude.toFixed(6) : '—'}, ${det.longitude ? det.longitude.toFixed(6) : '—'}</p>
+                            <p style="font-size: 0.6rem;">Confidence Metric: <b style="color:var(--orange);">${det.confidence ? det.confidence.toFixed(1) : '90.0'}%</b></p>
+                        </div>
+                    </div>
+                    
+                    <!-- Standard Actions Block -->
+                    <div class="survivor-actions" style="display: ${det.status === 'pending' ? 'flex' : 'none'};">
+                        <button class="survivor-btn" onclick="focusSurvivorLocation(${det.latitude || 14.4793}, ${det.longitude || 121.0198}, '${formattedTag}')">
+                            <i class="fa-solid fa-map-location-dot"></i> See Location
+                        </button>
+                        <button class="survivor-btn btn-success-action" onclick="triageSuccess(${det.id})">
+                            <i class="fa-solid fa-circle-check"></i> Success
+                        </button>
+                        <button class="survivor-btn btn-abort-action" onclick="promptAbortConfirmation(${det.id})">
+                            <i class="fa-solid fa-triangle-exclamation"></i> Abort
+                        </button>
+                    </div>
+
+                    <!-- Double-Check Misclick Abort Block -->
+                    <div class="survivor-confirm-block" style="display: none;">
+                        <span style="font-size: 0.6rem; font-weight: 800; color: #fff; letter-spacing: 0.05em;">ACCIDENT CONFIRMATION?</span>
+                        <div style="display: flex; gap: 4px;">
+                            <button class="confirm-btn-yes" onclick="commitTriageAbort(${det.id})">Continue</button>
+                            <button class="confirm-btn-no" onclick="cancelAbortConfirmation(${det.id})">Cancel</button>
+                        </div>
+                    </div>
+                `;
+
+                gridContainer.appendChild(card);
+            });
+
+            // Sync overall counting display
+            const pendingCount = activeDetections.filter(d => d.status === 'pending').length;
+            document.getElementById('v-now').textContent = pendingCount;
+        }
+
+        // Active Real-Time Database Connection state triggers for Survivor Detection
+        async function activateSurvivorDetection() {
+            addLog("Activating survivor detection protocols...");
+            
+            const supabase = window.supabaseClient || window.supabase;
+            if (!supabase) {
+                addLog("Supabase offline. Simulated real-time tracking active.");
+                if (simulatedDetectionInterval) clearInterval(simulatedDetectionInterval);
+                updateSimulatedTargets(); // Trigger once immediately
+                simulatedDetectionInterval = setInterval(updateSimulatedTargets, 1000);
+                return;
+            }
+
+            // Sync initial state from supabase
+            try {
+                const { data, error } = await supabase
+                    .from('detection_state')
+                    .select('*')
+                    .order('id', { ascending: true });
+                
+                if (data && !error) {
+                    activeDetections = data.map(d => ({
+                        id: d.id,
+                        formatted_tag: "S" + String(d.id).padStart(3, '0'),
+                        latitude: d.latitude || d.lat || 14.4793,
+                        longitude: d.longitude || d.lng || 121.0198,
+                        status: d.status || 'pending',
+                        cropped_image_url: d.cropped_image_url || '',
+                        confidence: d.confidence || 92.5
+                    }));
+                    syncSurvivorGridUI();
+                }
+            } catch(e) {
+                console.warn("Detection state sync failed:", e);
+            }
+
+            // Real-time update channel subscriptions on detection_state
+            if (detectionChannel) {
+                supabase.removeChannel(detectionChannel);
+            }
+
+            detectionChannel = supabase.channel('detection_live_missions')
+                .on('postgres_changes', {
+                    event : '*',
+                    schema: 'public',
+                    table : 'detection_state'
+                }, payload => {
+                    const updatedRow = payload.new;
+                    let match = activeDetections.find(d => d.id === updatedRow.id);
+                    if (match) {
+                        match.status = updatedRow.status;
+                        match.cropped_image_url = updatedRow.cropped_image_url;
+                        match.latitude = updatedRow.latitude || updatedRow.lat || match.latitude;
+                        match.longitude = updatedRow.longitude || updatedRow.lng || match.longitude;
+                    } else {
+                        activeDetections.push({
+                            id: updatedRow.id,
+                            formatted_tag: "S" + String(updatedRow.id).padStart(3, '0'),
+                            latitude: updatedRow.latitude || updatedRow.lat || 14.4793,
+                            longitude: updatedRow.longitude || updatedRow.lng || 121.0198,
+                            status: updatedRow.status || 'pending',
+                            cropped_image_url: updatedRow.cropped_image_url || '',
+                            confidence: updatedRow.confidence || 90.0
+                        });
+                    }
+                    syncSurvivorGridUI();
+                })
+                .subscribe();
+        }
+
+        // Active State teardown protocols
+        function deactivateSurvivorDetection() {
+            addLog("Deactivating survivor detection protocols.");
+            
+            if (simulatedDetectionInterval) {
+                clearInterval(simulatedDetectionInterval);
+                simulatedDetectionInterval = null;
+            }
+
+            const supabase = window.supabaseClient || window.supabase;
+            if (supabase && detectionChannel) {
+                supabase.removeChannel(detectionChannel);
+                detectionChannel = null;
+            }
+
+            // Remove map markers
+            Object.keys(survivorMapMarkers).forEach(tag => {
+                if (survivorMapMarkers[tag]) {
+                    map.removeLayer(survivorMapMarkers[tag]);
+                }
+            });
+            survivorMapMarkers = {};
+
+            // Empty tracking representations
+            activeDetections = [];
+            
+            // Clean interface with offline state representation
+            const gridContainer = document.getElementById('survivor-list');
+            if (gridContainer) {
+                gridContainer.innerHTML = `
+                    <div style="text-align: center; color: var(--text-dim); padding: 32px 16px; font-size: 0.75rem; border: 1px dashed var(--border); border-radius: 8px; background: rgba(255, 255, 255, 0.01); margin: 10px 0;">
+                        <i class="fa-solid fa-circle-exclamation" style="color: var(--orange); margin-bottom: 12px; font-size: 1.5rem; display: block;"></i>
+                        <span style="font-weight: 700; color: #fff; display: block; margin-bottom: 4px;">DETECTION PROTOCOLS OFFLINE</span>
+                        Establish tactical stream uplink to activate live survivor detection tracking.
+                    </div>
+                `;
+            }
+
+            // Reset HUD count
+            document.getElementById('v-now').textContent = "0";
+        }
+
+        // Updated Initiate Rescue function featuring functional simulated data mock fallback
+        function initiateRescue() {
+            if (!currentIncidentId) {
+                addLog("No active mission targeted. Initializing virtual target parameters...");
+                currentIncidentId = "MOCK-INCIDENT-999";
+                
+                document.getElementById('disp-mission-id').innerText = "INC-MOCK999";
+                document.getElementById('disp-mission-id').style.color = "var(--orange)";
+                document.getElementById('disp-coords').style.borderLeftColor = "var(--orange)";
+                document.getElementById('disp-coords').innerText = "14.4793, 121.0198";
+                document.getElementById('disp-situation').innerText = "[MOCK MODE] Simulating multi-agency extraction scenario targeting visible active hot-spots.";
+                document.getElementById('disp-extraction').innerText = "Las Piñas | Standby Hub Test";
+                
+                map.setView(DRONE_POS, 16);
+            }
+
+            isRescueDeployed = true;
+            const vNow = document.getElementById('v-now');
+            vNow.classList.remove('orange');
+            vNow.style.color = "var(--green-status)";
+            
+            document.getElementById('btn-init-rescue').style.display = 'none';
+            document.getElementById('mission-actions').style.display = 'flex';
+            
+            const statusBadge = document.getElementById('mission-status');
+            statusBadge.innerText = "ACTIVE";
+            statusBadge.style.color = "var(--green-status)";
+            statusBadge.style.borderColor = "rgba(0, 25, 157, 0.3)";
+            statusBadge.style.background = "rgba(0, 255, 157, 0.1)";
+            
+            addLog("Rescue deployed. Visible target count locked. Status: ACTIVE.");
+        }
+
+        async function endMission(outcome) {
+            const vNowCount = parseInt(document.getElementById('v-now').innerText) || 0;
+            addLog(`Mission ${outcome.toUpperCase()} process initiated...`);
+            
+            const supabase = window.supabaseClient || window.supabase;
+            if (supabase && currentIncidentId && !currentIncidentId.startsWith("MOCK-")) {
+                try {
+                    await supabase.from('missions').insert([{
+                        incident_id: currentIncidentId,
+                        status: outcome,
+                        survivors_locked: vNowCount
+                    }]);
+                    
+                    if (outcome === 'successful') {
+                        await supabase.from('incident_logs').update({ status: 'resolved' }).eq('id', currentIncidentId);
+                    } else if (outcome === 'aborted') {
+                        await supabase.from('incident_logs').update({ status: 'aborted' }).eq('id', currentIncidentId);
+                    }
+                } catch (e) {
+                    console.error("DB Logging error", e);
+                }
+            }
+
+            localStorage.removeItem('activeIncidentId');
+            localStorage.removeItem('activeMissionId');
+            localStorage.removeItem('activeMission');
+
+            isRescueDeployed = false;
+            currentIncidentId = null;
+            capturedTargetIds.clear();
+            
+            document.getElementById('v-now').textContent = "0";
+            document.getElementById('v-now').style.color = "";
+            document.getElementById('v-now').classList.add('orange');
+            
+            document.getElementById('btn-init-rescue').style.display = 'block';
+            document.getElementById('mission-actions').style.display = 'none';
+
+            const statusBadge = document.getElementById('mission-status');
+            statusBadge.innerText = "STANDBY";
+            statusBadge.style.color = "var(--text-dim)";
+            statusBadge.style.borderColor = "var(--border)";
+            statusBadge.style.background = "rgba(255, 255, 255, 0.05)";
+            
+            document.getElementById('disp-mission-id').innerText = "NO ACTIVE MISSION";
+            document.getElementById('disp-mission-id').style.color = "var(--text-dim)";
+            document.getElementById('disp-coords').style.borderLeftColor = "var(--text-dim)";
+            document.getElementById('disp-coords').innerText = "WAITING FOR COORDINATES";
+            document.getElementById('disp-situation').innerText = "Standby. No incident assigned.";
+            document.getElementById('disp-extraction').innerText = "--";
+            
+            document.getElementById('human-detection-alert').style.display = 'none';
+            map.setView(DRONE_POS, 15);
+
+            addLog(`Mission ended (${outcome}). Returning to hub standby.`);
+        }
+
+        // Bilinear interpolate 8x8 to 32x32 thermal values helper
+        function interpolate8x8To32x32(grid) {
+            if (!grid || grid.length !== 64) {
+                return new Array(1024).fill(28.5);
+            }
+            const out = new Array(1024);
+            for (let r = 0; r < 32; r++) {
+                const srcR = r / 32 * 7;
+                const r0 = Math.floor(srcR);
+                const r1 = Math.min(7, r0 + 1);
+                const rRatio = srcR - r0;
+                
+                for (let c = 0; c < 32; c++) {
+                    const srcC = c / 32 * 7;
+                    const c0 = Math.floor(srcC);
+                    const c1 = Math.min(7, c0 + 1);
+                    const cRatio = srcC - c0;
+                    
+                    const p00 = grid[r0 * 8 + c0];
+                    const p01 = grid[r0 * 8 + c1];
+                    const p10 = grid[r1 * 8 + c0];
+                    const p11 = grid[r1 * 8 + c1];
+                    
+                    const top = p00 * (1 - cRatio) + p01 * cRatio;
+                    const bottom = p10 * (1 - cRatio) + p11 * cRatio;
+                    out[r * 32 + c] = top * (1 - rRatio) + bottom * rRatio;
+                }
+            }
+            return out;
+        }
+
+        // High-fidelity continuous 32x32 rendering imager loop
+        function drawInterpolatedThermalGrid() {
+            const canvas = document.getElementById('thermalCanvas');
+            if (!canvas || !isThermal) return;
+            
+            const ctx = canvas.getContext('2d');
+            const width = canvas.width;
+            const height = canvas.height;
+            const grid32x32 = interpolate8x8To32x32(latestThermalGrid);
+            const cellW = width / 32;
+            const cellH = height / 32;
+            
+            ctx.clearRect(0, 0, width, height);
+            ctx.save();
+            ctx.globalAlpha = 1.0;
+            for (let r = 0; r < 32; r++) {
+                for (let c = 0; c < 32; c++) {
+                    const temp = grid32x32[r * 32 + c];
+                    const range = latestTMax - latestTMin;
+                    const norm = range === 0 ? 0.5 : (temp - latestTMin) / range;
+                    ctx.fillStyle = getBrandThermalColor(norm);
+                    ctx.fillRect(c * cellW, r * cellH, cellW + 0.5, cellH + 0.5);
+                }
+            }
+            ctx.restore();
+            
+            const barWidth = 15;
+            const barHeight = height * 0.7;
+            const barX = width - barWidth - 25;
+            const barY = (height - barHeight) / 2;
+            
+            ctx.save();
+            ctx.fillStyle = 'rgba(10, 10, 10, 0.9)';
+            ctx.strokeStyle = 'rgba(249, 115, 22, 0.4)';
+            ctx.lineWidth = 1.5;
+            ctx.fillRect(barX - 10, barY - 15, barWidth + 45, barHeight + 30);
+            ctx.strokeRect(barX - 10, barY - 15, barWidth + 45, barHeight + 30);
+            
+            const gradient = ctx.createLinearGradient(0, barY + barHeight, 0, barY);
+            gradient.addColorStop(0, getBrandThermalColor(0.0));
+            gradient.addColorStop(0.35, getBrandThermalColor(0.35));
+            gradient.addColorStop(0.65, getBrandThermalColor(0.65));
+            gradient.addColorStop(0.88, getBrandThermalColor(0.88));
+            gradient.addColorStop(1.0, getBrandThermalColor(1.0));
+            
+            ctx.fillStyle = gradient;
+            ctx.fillRect(barX, barY, barWidth, barHeight);
+            ctx.strokeRect(barX, barY, barWidth, barHeight);
+            
+            ctx.fillStyle = '#F97316';
+            ctx.font = 'bold 8px monospace';
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'middle';
+            
+            const numTicks = 5;
+            for (let i = 0; i < numTicks; i++) {
+                const factor = i / (numTicks - 1);
+                const y = barY + barHeight * (1 - factor);
+                const tVal = latestTMin + factor * (latestTMax - latestTMin);
+                ctx.strokeStyle = 'rgba(249, 115, 22, 0.7)';
+                ctx.beginPath();
+                ctx.moveTo(barX + barWidth, y);
+                ctx.lineTo(barX + barWidth + 4, y);
+                ctx.stroke();
+                ctx.fillText(`${tVal.toFixed(1)}°`, barX + barWidth + 7, y);
+            }
+            ctx.restore();
+
+            if (latestBoxesData && latestBoxesData.boxes) {
+                const fw = latestBoxesData.frame_w, fh = latestBoxesData.frame_h;
+                const sx = width / fw;
+                const sy = height / fh;
+                
+                ctx.save();
+                latestBoxesData.boxes.forEach(b => {
+                    ctx.strokeStyle = "var(--orange)";
+                    ctx.lineWidth = 2;
+                    const bx = b.x1 * sx;
+                    const by = b.y1 * sy;
+                    const bw = (b.x2 - b.x1) * sx;
+                    const bh = (b.y2 - b.y1) * sy;
+                    
+                    const len = Math.min(12, bw * 0.25, bh * 0.25);
+                    ctx.beginPath();
+                    ctx.moveTo(bx, by + len); ctx.lineTo(bx, by); ctx.lineTo(bx + len, by);
+                    ctx.moveTo(bx + bw - len, by); ctx.lineTo(bx + bw, by); ctx.lineTo(bx + bw, by + len);
+                    ctx.moveTo(bx, by + bh - len); ctx.lineTo(bx, by + bh); ctx.lineTo(bx + len, by + bh);
+                    ctx.moveTo(bx + bw - len, by + bh); ctx.lineTo(bx + bw, by + bh); ctx.lineTo(bx + bw, by + bh - len);
+                    ctx.stroke();
+
+                    ctx.fillStyle = "rgba(255, 255, 255, 0.95)";
+                    ctx.beginPath();
+                    ctx.arc(bx + bw / 2, by + bh / 2, 4, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    ctx.fillStyle = "#fff";
+                    ctx.font = 'bold 9px monospace';
+                    const mockTemp = (36.4 + (b.id % 4) * 0.18).toFixed(1);
+                    ctx.fillText(`SIG-ID#${b.id}`, bx + 4, by + 12);
+                    ctx.fillText(`CORE: ${mockTemp}°C`, bx + 4, by + bh - 6);
+                    
+                    ctx.strokeStyle = "rgba(249, 115, 22, 0.3)";
+                    ctx.strokeRect(bx, by, bw, bh);
+                });
+                ctx.restore();
+            }
+        }
+
+        function renderThermal() {
+            if (!isThermal) return;
+            
+            const canvas = document.getElementById('thermalCanvas');
+            const container = document.getElementById('thermalContainer');
+            if (canvas && container) {
+                canvas.width = container.clientWidth || 400;
+                canvas.height = container.clientHeight || 225;
+            }
+            drawInterpolatedThermalGrid();
+            
+            const gridTable = document.getElementById('thermal-amg-grid');
+            if (gridTable) {
+                gridTable.innerHTML = '';
+                latestThermalGrid.forEach(t => {
+                    const { bg, text } = tempColor(t, latestTMin, latestTMax);
+                    const cell = document.createElement('div');
+                    cell.style.cssText = `background:${bg}; color:${text}; aspect-ratio:1;
+                        border-radius:2px; display:flex; align-items:center;
+                        justify-content:center; font-size:7px; font-weight:bold; font-family:var(--mono);`;
+                    cell.textContent = Math.round(t);
+                    gridTable.appendChild(cell);
+                });
+            }
+
+            // Sync updated premium thermal metrics matching the visual identity
+            const minLabel = document.getElementById('thermal-gmin');
+            const maxLabel = document.getElementById('thermal-gmax');
+            if (minLabel) minLabel.textContent = latestTMin.toFixed(1) + ' °C';
+            if (maxLabel) maxLabel.textContent = latestTMax.toFixed(1) + ' °C';
+
+            requestAnimationFrame(renderThermal);
+        }
+
+        function updateLoraUI(row) {
+            const hasFix = row.has_gps;
+            loraGpsActive = hasFix; // Synchronize global GPS activation flag
+
+            document.getElementById('d-lat').textContent = hasFix ? row.latitude.toFixed(6)  : '—';
+            document.getElementById('d-lng').textContent = hasFix ? row.longitude.toFixed(6) : '—';
+            document.getElementById('d-alt').textContent = hasFix ? row.altitude.toFixed(1) + ' m'    : '—';
+            document.getElementById('d-spd').textContent = hasFix ? row.speed.toFixed(1)    + ' km/h' : '—';
+            document.getElementById('d-sat').textContent = hasFix ? row.satellites : '—';
+            
+            const pulse  = document.getElementById('lora-pulse');
+            const status = document.getElementById('lora-status');
+            pulse.style.background  = hasFix ? 'var(--green-status)' : 'var(--orange)';
+            status.style.color      = hasFix ? 'var(--green-status)' : 'var(--orange)';
+            status.textContent      = hasFix ? 'GPS FIX' : 'NO FIX';
+            
+            if (hasFix && map) {
+                DRONE_POS = [row.latitude, row.longitude];
+                if (droneMarker) {
+                    droneMarker.setLatLng(DRONE_POS);
+                } else {
+                    droneMarker = L.circleMarker(DRONE_POS, {
+                        radius: 8, fillColor: 'var(--green-status)',
+                        color: '#fff', weight: 2, fillOpacity: 1
+                    }).addTo(map).bindTooltip('SR-01 ALPHA');
+                }
+                map.setView(DRONE_POS);
+            } else {
+                // If LoRa loses fix or is inactive, remove drone marker from view
+                if (droneMarker) {
+                    map.removeLayer(droneMarker);
+                    droneMarker = null;
+                }
+            }
+            
+            const temps = row.temp_grid;
+            const min   = row.temp_min;
+            const max   = row.temp_max;
+            if (temps && Array.isArray(temps)) {
+                latestThermalGrid = temps;
+                latestTMin = min;
+                latestTMax = max;
+            }
+            
+            loraPackets++;
+            document.getElementById('d-pkt').textContent = loraPackets;
+        }
+
+        async function initLora() {
+            if (window.supabase && typeof window.supabase.createClient === 'function') {
+                const url = typeof LORA_SUPABASE_URL !== 'undefined' ? LORA_SUPABASE_URL : '';
+                const key = typeof LORA_SUPABASE_KEY !== 'undefined' ? LORA_SUPABASE_KEY : '';
+                if (url && key) {
+                    loraSupabase = window.supabase.createClient(url, key);
+                }
+            }
+            
+            if (!loraSupabase) return;
+
+            try {
+                const { data } = await loraSupabase
+                    .from('lora_readings')
+                    .select('*')
+                    .order('created_at', { ascending: false })
+                    .limit(1)
+                    .single();
+                if (data) updateLoraUI(data);
+            } catch (err) {}
+
+            loraSupabase.channel('lora_live_mission')
+                .on('postgres_changes', {
+                    event : 'INSERT',
+                    schema: 'public',
+                    table : 'lora_readings'
+                }, payload => {
+                    updateLoraUI(payload.new);
+                })
+                .subscribe();
+        }
+
+        function goToDrone() { map.setView(DRONE_POS, 16); }
+        function recenterMap() { navigator.geolocation.getCurrentPosition(pos => map.setView([pos.coords.latitude, pos.coords.longitude], 16)); }
+
+        setInterval(() => {
+            document.getElementById('clock').textContent = new Date().toLocaleTimeString('en-GB', { hour12: false });
+        }, 1000);
+
+        async function loadActiveMission() {
+            const supabase = window.supabaseClient || window.supabase;
+            if (supabase) {
+                try {
+                    const activeId = localStorage.getItem('activeIncidentId') || localStorage.getItem('activeMissionId');
+                    let query = supabase.from('incident_logs').select('*');
+                    
+                    if (activeId) {
+                        query = query.eq('id', activeId).single();
+                    } else {
+                        query = query.eq('status', 'active').order('created_at', { ascending: false }).limit(1).single();
+                    }
+                    
+                    const { data, error } = await query;
+                    if (data && !error) {
+                        currentIncidentId = data.id; 
+                        document.getElementById('mission-status').innerText = "STANDBY";
+                        document.getElementById('mission-status').style.color = "var(--text-dim)";
+                        document.getElementById('disp-mission-id').innerText = `INC-${data.id.toString().substring(0,8)}`;
+                        document.getElementById('disp-mission-id').style.color = "var(--orange)";
+                        document.getElementById('disp-coords').style.borderLeftColor = "var(--orange)";
+                        
+                        const desc = data.description || data.incident_type || "Immediate assessment required.";
+                        document.getElementById('disp-situation').innerText = desc;
+                        
+                        const lat = data.latitude || data.lat || 14.4852;
+                        const lng = data.longitude || data.lng || 121.0134;
+                        document.getElementById('disp-coords').innerText = `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+                        
+                        const loc = data.location || data.district || "Deployed Location";
+                        const date = data.created_at ? new Date(data.created_at).toLocaleDateString() : new Date().toLocaleDateString();
+                        document.getElementById('disp-extraction').innerText = `${loc} | ${date}`;
+                        
+                        map.setView([lat, lng], 16);
+                        addLog(`Mission Target locked on DB Incident ${data.id}`);
+                        return;
+                    }
+                } catch (e) {
+                    console.warn("Could not fetch mission from Supabase.", e);
+                }
+            }
+
+            const active = JSON.parse(localStorage.getItem('activeMission'));
+            if (active) {
+                currentIncidentId = active.id;
+                document.getElementById('mission-status').innerText = "STANDBY";
+                document.getElementById('disp-mission-id').innerText = active.id;
+                document.getElementById('disp-coords').innerText = `${active.lat.toFixed(4)}, ${active.lng.toFixed(4)}`;
+                document.getElementById('disp-situation').innerText = active.situation;
+                document.getElementById('disp-extraction').innerText = `${active.founded} | ${active.foundDate}`;
+                map.setView([active.lat, active.lng], 16);
+            }
+        }
+
+        window.onload = async () => {
+            addLog("Mission Hub Online...");
+            if (currentRole === 'developer') document.getElementById('dev-badge').style.display = 'block';
+
+            // Automatic Stream Uplink Restoration
+            const savedStream = localStorage.getItem('establishedStreamUrl');
+            if (savedStream) {
+                document.getElementById('stream-url').value = savedStream;
+                applyTacticalApi();
+            } else {
+                applyRoleRestrictions();
+                deactivateSurvivorDetection(); // Default to offline state if stream isn't set
+            }
+
+            await renderMapAssets();
+            await loadActiveMission();
+            await initLora();
+        };
+    </script>
+</body>
+</html>

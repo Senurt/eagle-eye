@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Eagle Eye | Audit Logs</title>
+    
+    <!-- Tactical Branding Favicon -->
+    <link rel="icon" type="image/png" href="favicon.png">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --black: #0a0a0a; 
+            --orange: #F97316; 
+            --red: #DC2626;
+            --text-main: #ffffff; 
+            --text-dim: rgba(255, 255, 255, 0.4); 
+            --grad: linear-gradient(90deg, #F97316 0%, #DC2626 100%);
+            --v-grad: linear-gradient(180deg, #F97316 0%, #DC2626 100%);
+            --border: rgba(255, 255, 255, 0.08);
+            --card-bg: #121212;
+        }
+
+        body { 
+            height: 100vh; 
+            font-family: 'Inter', sans-serif; 
+            background: var(--black); 
+            color: var(--text-main); 
+            display: flex; 
+            flex-direction: column; 
+            overflow: hidden; 
+        }
+
+        /* ── CUSTOM SCROLLBARS ── */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #111; border-left: 1px solid var(--border); }
+        ::-webkit-scrollbar-thumb { background: var(--v-grad); border-radius: 10px; }
+
+        /* ── NAVIGATION ── */
+        nav { 
+            display: flex; align-items: center; justify-content: space-between; 
+            padding: 0 44px; height: 80px; border-bottom: 1px solid var(--border); 
+            background: var(--black); z-index: 1000; flex-shrink: 0; 
+        }
+        .nav-logo { display: flex; align-items: center; gap: 14px; text-decoration: none; transition: opacity 0.2s; }
+        .brand-logo { height: 50px; width: auto; object-fit: contain; filter: invert(1) contrast(200%); mix-blend-mode: screen; }
+
+        .nav-right { display: flex; align-items: center; gap: 32px; height: 100%; }
+        .nav-links { display: flex; gap: 32px; height: 100%; align-items: center; }
+        .nav-links a { 
+            position: relative; font-weight: 700; font-size: 0.85rem; color: var(--text-dim); 
+            text-decoration: none; text-transform: uppercase; letter-spacing: 0.05em;
+            height: 100%; display: flex; align-items: center; transition: all .2s ease;
+        }
+        .nav-links a:hover, .nav-links a.active { color: #fff; }
+        .nav-links a.active::after { 
+            content: ''; position: absolute; bottom: 0; left: 0; right: 0; 
+            height: 2px; background: var(--grad); box-shadow: 0 0 10px rgba(249, 115, 22, 0.5);
+        }
+
+        .nav-user { position: relative; z-index: 9999; display: flex; align-items: center; }
+        .dots-btn { background: transparent; border: none; color: var(--text-dim); cursor: pointer; padding: 10px; border-radius: 10px; transition: all 0.2s; }
+        .dots-btn:hover { background: rgba(255, 255, 255, 0.05); color: #fff; }
+        
+        .dropdown-menu { 
+            position: absolute; top: calc(100% + 10px); right: 0; width: 180px; 
+            background: #121212; border: 1px solid var(--border); border-radius: 16px; 
+            padding: 8px; display: none; flex-direction: column; 
+            box-shadow: 0 20px 50px rgba(0,0,0,0.6); backdrop-filter: blur(10px); 
+        }
+        .dropdown-menu.show { display: flex; animation: dropIn 0.2s ease-out; }
+        @keyframes dropIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+
+        .dropdown-menu a { padding: 12px 16px; text-decoration: none; color: var(--text-dim); font-size: 0.85rem; font-weight: 600; border-radius: 8px; transition: all 0.2s; }
+        .dropdown-menu a:hover { background: rgba(255, 255, 255, 0.05); color: #fff; }
+        .dropdown-divider { border: 0; border-top: 1px solid var(--border); margin: 8px 0; }
+        .logout-link { color: var(--red) !important; }
+
+        /* ── LAYOUT ── */
+        .dashboard-layout { flex: 1; display: flex; flex-direction: column; padding: 30px 44px; overflow-y: auto; }
+        
+        /* ── TABLE SECTION ── */
+        .table-section { flex: 1; display: flex; flex-direction: column; background: var(--card-bg); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; }
+        .table-top { padding: 16px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+        
+        .search-wrapper { position: relative; width: 100%; max-width: 400px; }
+        .search-wrapper i { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-dim); }
+        .search-bar { 
+            width: 100%; background: #0a0a0a; border: 1px solid var(--border); 
+            border-radius: 8px; padding: 12px 16px 12px 40px; color: #fff; outline: none; font-size: 0.9rem;
+        }
+
+        .table-container { flex: 1; overflow: auto; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        thead th { 
+            position: sticky; top: 0; z-index: 10; background: #151515; padding: 16px; 
+            text-align: left; color: var(--text-dim); font-weight: 800; 
+            border-bottom: 1px solid var(--border); cursor: pointer; text-transform: uppercase; font-size: 0.7rem; letter-spacing: 0.5px;
+        }
+        thead th:hover { background: #1a1a1a; color: #fff; }
+        thead th i { margin-left: 8px; font-size: 0.75rem; color: var(--orange); opacity: 0.4; }
+
+        tbody td { padding: 16px; border-bottom: 1px solid var(--border); color: #ccc; vertical-align: middle; }
+        tbody tr:hover { background: rgba(255, 255, 255, 0.02); }
+        
+        .timestamp-cell { color: var(--text-dim); font-weight: 500; white-space: nowrap; }
+        .user-cell { font-weight: 700; color: #fff; font-family: 'Courier New', Courier, monospace; font-size: 0.8rem; white-space: nowrap; }
+        
+        .desc-cell { color: #888; font-size: 0.8rem; line-height: 1.4; max-width: 500px; white-space: normal !important; }
+        .highlight { color: var(--orange); font-weight: 700; }
+
+        /* Action Badges */
+        .badge { padding: 6px 10px; border-radius: 6px; font-size: 0.65rem; font-weight: 900; text-transform: uppercase; letter-spacing: 0.5px; display: inline-block;}
+        .action-create { background: rgba(59, 130, 246, 0.15); color: #3b82f6; border: 1px solid rgba(59, 130, 246, 0.3); } 
+        .action-update { background: rgba(249, 115, 22, 0.15); color: var(--orange); border: 1px solid rgba(249, 115, 22, 0.3); } 
+        .action-security { background: rgba(220, 38, 38, 0.15); color: var(--red); border: 1px solid rgba(220, 38, 38, 0.3); } 
+        .action-default { background: rgba(255, 255, 255, 0.05); color: #fff; border: 1px solid rgba(255, 255, 255, 0.1); }
+    </style>
+</head>
+<body>
+
+<nav>
+    <a href="admin.html" class="nav-logo">
+        <img src="logo.png" alt="Eagle Eye" class="brand-logo">
+    </a>
+    <div class="nav-right">
+        <div class="nav-links">
+            <a href="admin.html">Admin Dashboard</a>
+            <a href="reports.html">Reports</a>
+            <a href="audit.html" class="active">Audit Logs</a>
+        </div>
+        <div class="nav-user">
+            <button class="dots-btn" id="menuBtn">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="1"></circle>
+                    <circle cx="12" cy="5" r="1"></circle>
+                    <circle cx="12" cy="19" r="1"></circle>
+                </svg>
+            </button>
+            <div class="dropdown-menu" id="dropdownMenu">
+                <a href="profile.html">Account Profile</a>
+                <hr class="dropdown-divider">
+                <a href="index.html" class="logout-link" onclick="localStorage.clear()">Log Out</a>
+            </div>
+        </div>
+    </div>
+</nav>
+
+<main class="dashboard-layout">
+    <div class="table-section">
+        <div class="table-top">
+            <div class="search-wrapper">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" id="searchInput" class="search-bar" placeholder="Filter by user, action, or description...">
+            </div>
+        </div>
+        <div class="table-container">
+            <table id="auditTable">
+                <thead>
+                    <tr id="headerRow">
+                        <th onclick="sortTable(0, this)">Timestamp <i class="fa-solid fa-sort"></i></th>
+                        <th onclick="sortTable(1, this)">Action <i class="fa-solid fa-sort"></i></th>
+                        <th onclick="sortTable(2, this)">Subject ID <i class="fa-solid fa-sort"></i></th>
+                        <th style="cursor: default;">Description</th>
+                    </tr>
+                </thead>
+                <tbody id="auditData"></tbody>
+            </table>
+        </div>
+    </div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-init.js"></script>
+
+<script>
+    let auditLogsData = [];
+    let sortState = { index: null, dir: 'desc' };
+
+    // Navigation Dropdown
+    const menuBtn = document.getElementById('menuBtn');
+    const dropdownMenu = document.getElementById('dropdownMenu');
+    if (menuBtn) {
+        menuBtn.addEventListener('click', (e) => { 
+            e.stopPropagation(); 
+            dropdownMenu.classList.toggle('show'); 
+        });
+    }
+    document.addEventListener('click', () => {
+        if (dropdownMenu) dropdownMenu.classList.remove('show');
+    });
+
+    function getBadgeClass(action) {
+        const a = String(action || '').toUpperCase();
+        if (a === 'INSERT') return 'action-create';
+        if (a === 'UPDATE') return 'action-update';
+        if (a === 'DELETE') return 'action-security';
+        return 'action-default';
+    }
+
+    function formatDescription(log) {
+        const action = String(log.action || '').toUpperCase();
+        const oldData = log.old_data || {};
+        const newData = log.new_data || {};
+        
+        if (action === 'INSERT') {
+            const identifier = newData.username || newData.email || log.user_id || 'new entry';
+            const role = newData.role ? ` as <span class="highlight">${newData.role}</span>` : "";
+            return `Registered new personnel account for <span class="highlight">${identifier}</span>${role}.`;
+        }
+        
+        if (action === 'DELETE') {
+            return `Permanently removed account data from registry.`;
+        }
+        
+        if (action === 'UPDATE') {
+            const changeDescriptions = [];
+            const keys = new Set([...Object.keys(oldData), ...Object.keys(newData)]);
+            
+            keys.forEach(key => {
+                // Ignore technical keys or keys that shouldn't be summarized
+                if (['id', 'updated_at', 'created_at', 'changed_at', 'last_sign_in_at'].includes(key)) return;
+                
+                const oldVal = oldData[key];
+                const newVal = newData[key];
+                
+                if (JSON.stringify(oldVal) !== JSON.stringify(newVal)) {
+                    const fieldName = key.replace(/_/g, ' ');
+                    const oldDisplay = (oldVal === null || oldVal === undefined || oldVal === "") ? "none" : oldVal;
+                    const newDisplay = (newVal === null || newVal === undefined || newVal === "") ? "none" : newVal;
+                    
+                    changeDescriptions.push(`modified <span class="highlight">${fieldName}</span> from <span class="highlight">${oldDisplay}</span> to <span class="highlight">${newDisplay}</span>`);
+                }
+            });
+            
+            if (changeDescriptions.length > 0) {
+                const summary = changeDescriptions.join(', ');
+                return summary.charAt(0).toUpperCase() + summary.slice(1) + '.';
+            }
+            return `Synchronized record metadata.`;
+        }
+        
+        return `System event recorded.`;
+    }
+
+    async function fetchAuditLogs() {
+        if (!window.supabase) return;
+        try {
+            const { data, error } = await window.supabase
+                .from('user_audit_log')
+                .select('*')
+                .order('changed_at', { ascending: false });
+
+            if (error) throw error;
+            auditLogsData = data || [];
+            renderAuditLogs(auditLogsData);
+            
+            // Subscribe to real-time changes to detect new accounts/logs as they happen
+            window.supabase
+                .channel('audit-realtime')
+                .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'user_audit_log' }, payload => {
+                    auditLogsData.unshift(payload.new);
+                    renderAuditLogs(auditLogsData);
+                })
+                .subscribe();
+
+        } catch (err) {
+            console.error("Audit Sync Error:", err.message);
+        }
+    }
+
+    function renderAuditLogs(data) {
+        const tbody = document.getElementById('auditData');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+
+        if (data.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; padding: 100px; color: var(--text-dim);">No registry entries found.</td></tr>`;
+            return;
+        }
+
+        data.forEach(log => {
+            const tr = document.createElement('tr');
+            const displayDate = log.changed_at ? new Date(log.changed_at).toLocaleString('en-GB', {
+                day: '2-digit', month: '2-digit', year: 'numeric',
+                hour: '2-digit', minute: '2-digit'
+            }) : 'N/A';
+            
+            const actionBadge = `<span class="badge ${getBadgeClass(log.action)}">${log.action || 'EVENT'}</span>`;
+            const subjectId = log.user_id || 'SYSTEM';
+            const description = formatDescription(log);
+
+            tr.innerHTML = `
+                <td class="timestamp-cell">${displayDate}</td>
+                <td>${actionBadge}</td>
+                <td class="user-cell">${subjectId}</td>
+                <td class="desc-cell">${description}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+
+        // Re-apply search filter after rendering to ensure the search bar state is respected
+        applySearchFilter();
+    }
+
+    function applySearchFilter() {
+        const searchInput = document.getElementById('searchInput');
+        if (!searchInput) return;
+        const val = searchInput.value.toLowerCase();
+        document.querySelectorAll("#auditData tr").forEach(row => {
+            // Search across the entire row text content
+            row.style.display = row.textContent.toLowerCase().includes(val) ? "" : "none";
+        });
+    }
+
+    function sortTable(n, header) {
+        const tbody = document.getElementById("auditData");
+        if (!tbody) return;
+        const rows = Array.from(tbody.querySelectorAll("tr"));
+        if(rows.length === 0) return;
+
+        sortState.dir = (sortState.index === n && sortState.dir === 'asc') ? 'desc' : 'asc';
+        sortState.index = n;
+
+        const allHeaders = document.querySelectorAll('#headerRow th');
+        allHeaders.forEach(th => {
+            const icon = th.querySelector('i');
+            if(icon) icon.className = 'fa-solid fa-sort';
+        });
+
+        const activeIcon = header.querySelector('i');
+        if (activeIcon) {
+            activeIcon.className = sortState.dir === 'asc' ? 'fa-solid fa-sort-up' : 'fa-solid fa-sort-down';
+        }
+
+        const sortedRows = rows.sort((a, b) => {
+            let valA, valB;
+            const cellA = a.getElementsByTagName("TD")[n];
+            const cellB = b.getElementsByTagName("TD")[n];
+
+            if (n === 0) { // Date sorting logic
+                // Converts "DD/MM/YYYY, HH:MM" to sortable time
+                const parseDate = (txt) => {
+                    const [d, m, y] = txt.split(', ')[0].split('/');
+                    const time = txt.split(', ')[1];
+                    return new Date(`${y}-${m}-${d}T${time}`).getTime();
+                };
+                valA = parseDate(cellA.innerText);
+                valB = parseDate(cellB.innerText);
+            } else {
+                valA = cellA.innerText.toLowerCase();
+                valB = cellB.innerText.toLowerCase();
+            }
+
+            if (valA < valB) return sortState.dir === 'asc' ? -1 : 1;
+            if (valA > valB) return sortState.dir === 'asc' ? 1 : -1;
+            return 0;
+        });
+
+        tbody.append(...sortedRows);
+    }
+
+    // Search Logic Event Listener
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) {
+        searchInput.addEventListener('input', applySearchFilter);
+    }
+
+    window.onload = fetchAuditLogs;
+</script>
+</body>
+</html>
