@@ -1,5 +1,5 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { DOMParser } from "https://esm.sh/linkedom@0.16.8";
+import { parse } from 'npm:node-html-parser';
 
 /**
  * EAGLE EYE SCANNER - ADVANCED DEDUPLICATION & QUALITY EVALUATION
@@ -111,24 +111,39 @@ async function runDynamicScanner() {
       });
       
       const html = await res.text();
-      const doc = new DOMParser().parseFromString(html, "text/html");
+      const doc = parse(html);
       if (!doc) continue;
 
       const posts = doc.querySelectorAll('div[role="article"], .story_stream > div');
 
       for (const post of posts) {
-        const textContent = post.querySelector('p, .msg, div > span')?.textContent || "";
+        const textContent = post.querySelector('p, .msg, div > span')?.text || "";
         const lowerText = textContent.toLowerCase();
 
         const matchesKeyword = TARGET_KEYWORDS.some(keyword => lowerText.includes(keyword));
         if (!matchesKeyword || textContent.trim().length === 0) continue;
 
-        const linkEl = post.querySelector('a[href*="story_fbid"], a[href*="/photos/"], a[href*="/permalink/"]');
-        let cleanUrl = "https://facebook.com" + (linkEl?.getAttribute("href") || `#${Math.random()}`);
-        cleanUrl = cleanUrl.replace("mbasic.facebook.com", "facebook.com").split("?")[0];
+        // Secure Link Selection via querySelectorAll elements
+        let cleanUrl = `https://facebook.com/#${Math.random()}`;
+        const links = post.querySelectorAll('a');
+        for (const link of links) {
+          const href = link.getAttribute('href') || '';
+          if (href.includes('story_fbid') || href.includes('/photos/') || href.includes('/permalink/')) {
+            cleanUrl = "https://facebook.com" + href.replace("mbasic.facebook.com", "facebook.com").split("?")[0];
+            break;
+          }
+        }
 
         const imageUrl = post.querySelector('img')?.getAttribute('src') || null;
-        const locationTag = post.querySelector('a[href*="/places/"]')?.textContent || "Paranaque Area";
+        
+        let locationTag = "Paranaque Area";
+        for (const link of links) {
+          const href = link.getAttribute('href') || '';
+          if (href.includes('/places/')) {
+            locationTag = link.text || "Paranaque Area";
+            break;
+          }
+        }
 
         let latitude = null;
         let longitude = null;
