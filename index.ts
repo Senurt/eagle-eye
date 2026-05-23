@@ -185,3 +185,11 @@ Deno.cron("Eagle Eye Scheduled Incident Scan", "*/10 * * * *", async () => {
   }
   await runDynamicScanner();
 });
+
+// Start a lightweight web server to satisfy Deno Deploy's warm-up and routing health checks
+Deno.serve((_req) => {
+  return new Response("Eagle Eye Background Scraper is active!", {
+    status: 200,
+    headers: { "content-type": "text/plain" }
+  });
+});
